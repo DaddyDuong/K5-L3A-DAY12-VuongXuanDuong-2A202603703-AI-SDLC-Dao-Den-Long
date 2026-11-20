@@ -1,0 +1,3 @@
+night 1  seed 7  980 lines  sha256 916263e197a47b12  run2 IDENTICAL
+night 2  seed 7  1707 lines  sha256 c9b655d5023ad881  run2 IDENTICAL
+night 3  seed 7  2204 lines  sha256 ac11810903d52b02  run2 IDENTICAL

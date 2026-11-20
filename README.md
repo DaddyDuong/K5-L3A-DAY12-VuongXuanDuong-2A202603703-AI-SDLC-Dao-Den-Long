@@ -76,7 +76,8 @@ node dist-headless/headless/cli.js --seed 1 --night 1 --ticks 600 --out out.json
 - Snapshot v1.1 có `night`, `wind`, `player.vel/grounded/invuln/dash_cd_s/pulse_cd_s/charm_s`, mảng `motes`, `drifters`, `charms`.
 - Khai báo: [`game.contract.json`](game.contract.json) (`contract_version: "1.1"`, `tuning` = số chuẩn của Ticket-02).
   Tốc độ Bóng Mực Đêm 3 (4.5 m/s) không có khóa trong `tuning` nên nằm ở `src/sim/maps.ts`.
-- Một Đêm đầy đủ 21 600 tick chạy headless dưới 0.5 s (đo: Đêm 1 ≈ 0.18 s, Đêm 2 ≈ 0.36 s; yêu cầu ≤ 30 s).
+- Một Đêm đầy đủ 21 600 tick chạy headless ≈ 0.6–1.1 s (yêu cầu ≤ 30 s; `docs/proof/phase-2/headless/timing.txt`).
+- Bằng chứng headless dạng file: `scripts/proof-headless.sh` → `docs/proof/phase-2/headless/`.
 
 ## Kiểm thử
 

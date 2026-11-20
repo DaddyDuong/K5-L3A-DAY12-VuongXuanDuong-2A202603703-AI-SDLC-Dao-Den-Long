@@ -46,17 +46,28 @@ Kết quả `npm test` tại commit cuối Phase 1: **61/61 đạt** (3 file tes
 | Hết lửa xét trước thắng | AC31 | `phase2.test.ts` › AC31 | Đạt |
 | Tỏa Sáng 3D từ chân + 0.8 m, đẩy 4 m/15 tick dừng ở vật cản, +5 kể cả con đang choáng | AC32 | `phase2.test.ts` › AC32; `rules.test.ts` › R8/R9 | Đạt |
 | Vùng an toàn 6 m; bóng bên trong khi đèn vừa thắp bị đẩy ra ≤ 30 tick, không gây sát thương | AC33 | `phase2.test.ts` › AC33; `rules.test.ts` › AC15 | Đạt |
-| Lướt 14 m/s × 12 tick, hồi 90 tick, hướng mặt khi đứng yên, giữ độ cao trên không | AC34 | `phase2.test.ts` › AC34 | Đạt |
+| Lướt 14 m/s × 12 tick, hồi 90 tick, hướng mặt khi đứng yên, giữ độ cao trên không; **không bất tử khi lướt** (slide CP2) | AC34 | `phase2.test.ts` › AC34 | Đạt |
 | Rơi khỏi đảo: 1 lần, bỏ qua bất tử, mất toàn bộ, chờ 60 tick, hồi sinh bất tử | AC35 | `phase2.test.ts` › AC35 | Đạt |
-| Đêm 2: cầu tre, rơi khỏi mép cầu, bục nhảy đáp đảo B (~1.4 s), phím không ghi đè | AC36 | `phase2.test.ts` › AC36 | Đạt |
+| Đêm 2: cầu tre, rơi khỏi mép cầu, bục nhảy đáp đảo B (~1.4 s), phím không ghi đè, **vẫn lướt được khi đang bay** (ghi chú slide 14) | AC36 | `phase2.test.ts` › AC36 | Đạt |
 | Đêm 3: vách tầng, dốc 30°, bục lên tầng 2, tháp chuông chặn, bước xuống tầng không phải "rơi" | AC37 | `phase2.test.ts` › AC37 | Đạt |
 | Gió Lạc: idle → chase (≥ 5, ≤ 15 m) → cướp 3 → flee 240 tick → removed; tỏa sáng lúc chase/flee; bỏ qua bất tử/vùng an toàn; sinh ở tick 1200 | AC38 | `phase2.test.ts` › AC38 | Đạt |
 | Bùa Gió: `charm_picked`, 7.2 m/s, lướt không hồi chiêu, xuất hiện lại sau 2700 tick, nhặt lại làm mới | AC39 | `phase2.test.ts` › AC39 | Đạt |
 | Gió mạnh Đêm 3: tick 1800–2099 đẩy 2 m/s (10 m), `wind_enabled:false` tắt; Đêm 1–2 không gió | AC40 | `phase2.test.ts` › AC40 | Đạt |
 | Tạm dừng: `paused`/`resumed`, `tick` tăng, `sim_tick`/giờ/vị trí đứng yên, nút bị bỏ qua, `end` ghi `paused` | AC41 | `phase2.test.ts` › AC41 | Đạt |
-| Một Đêm 21 600 tick < 30 s; tất định byte-identical (Đêm 2, 3 với mọi luật mới) | AC43 | `phase2.test.ts` › AC43 (đo thực tế < 0.5 s) | Đạt |
+| Một Đêm 21 600 tick < 30 s; tất định byte-identical (Đêm 2, 3 với mọi luật mới) | AC43 | `phase2.test.ts` › AC43; [`headless/timing.txt`](phase-2/headless/timing.txt) (≈ 0.6–1.1 s/Đêm), [`headless/determinism.txt`](phase-2/headless/determinism.txt) | Đạt |
 | Regression Phase 1 với số chuẩn | AC44 | `rules.test.ts`, `headless.test.ts`, `inputs.test.ts` (lý do đổi kỳ vọng: assumptions §1) | Đạt |
 | Cả 3 Đêm thắng được (bot qua sim thật; inputs của bot qua CLI ra cùng kết quả) | — | `autoplay.test.ts` (Đêm 1–2 seed 1/7/42, Đêm 3 seed 2/3/7) | Đạt |
+
+### Bằng chứng headless dạng file (slide 19: input + output log + kết quả; chạy 2 lần cùng seed rồi so diff)
+
+Sinh lại bằng `scripts/proof-headless.sh` (build headless rồi chạy CLI thật; máy/commit ghi ở `env.txt`):
+
+| Yêu cầu | Cách kiểm chứng | File bằng chứng | Kết quả |
+|---|---|---|---|
+| Cả 3 Đêm thắng được qua CLI chấm | inputs của bot → `--ticks 21600` | [`replays-end.txt`](phase-2/headless/replays-end.txt) | Đạt (Đêm 1: 1446, Đêm 2: 1476, Đêm 3: 1580; đều `won`) |
+| Tính tất định | chạy 2 lần cùng seed 7 + cùng inputs, `cmp` | [`determinism.txt`](phase-2/headless/determinism.txt) | Đạt (IDENTICAL cả 3 Đêm) |
+| 1 Đêm 21 600 tick ≤ 30 s | đứng trong vùng an toàn, Bóng Mực sinh tới trần, đo thời gian thực | [`timing.txt`](phase-2/headless/timing.txt) | Đạt (≈ 0.6 / 0.9 / 1.1 s) |
+| Mẫu output đầy đủ | Đêm 3 seed 7, snapshot mỗi 600 tick | [`n3-seed7-every600.jsonl`](phase-2/headless/n3-seed7-every600.jsonl) | — |
 
 ### Bản web (AC45) — phát lại inputs của bot qua cùng `step()`
 
