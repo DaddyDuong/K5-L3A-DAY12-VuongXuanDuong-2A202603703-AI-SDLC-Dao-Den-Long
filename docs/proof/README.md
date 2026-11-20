@@ -1,7 +1,7 @@
 # Bằng chứng kiểm chứng
 
 Chạy lại toàn bộ: `npm ci && npm test` ở tag tương ứng. Mỗi AC (định nghĩa ở
-[`phase-1-assumptions.md`](../notes/phase-1-assumptions.md) và [`phase-2-assumptions.md`](../notes/phase-2-assumptions.md) §4) là một test chạy **CLI headless thật**
+[`phase-1-assumptions.md`](../notes/phase-1-assumptions.md), [`phase-2-assumptions.md`](../notes/phase-2-assumptions.md) và [`phase-3-assumptions.md`](../notes/phase-3-assumptions.md) §4) là một test chạy **CLI headless thật**
 (`tests/helpers.ts#runCli`) và kiểm tra dòng JSONL; tên test bắt đầu bằng mã AC.
 
 ## Phase 1
@@ -104,3 +104,34 @@ Vì vậy đo chi phí thật mỗi khung bằng `__bench(n)` (`?fps=1`): render
 
 Kết luận: ≥ 30 FPS ở 1280×720 với dư địa lớn. **Cần người chơi xác nhận thêm** bằng đồng hồ `?fps=1` trong cửa sổ đang mở
 phía trước (số "TB" là trung bình 30 s gần nhất).
+
+## Phase 3 (Ticket-03 "Đèn cạn dầu", Contract v1.2)
+
+Luật cũ bị thay, test cũ bị sửa kèm lý do và ADR-003: [`phase-3-assumptions.md`](../notes/phase-3-assumptions.md) §1–§2.
+Thay đổi phá vỡ tương thích: [`CHANGELOG.md`](../../CHANGELOG.md).
+
+| Yêu cầu | AC | Kiểm chứng | Kết quả |
+|---|---|---|---|
+| `contract_version "1.2"`, 8 khóa mới, thời lượng 240/270/300, điểm mới | AC47 | `contract.test.ts` | Đạt |
+| Dầu 100 khi thắp, −1/s, snapshot `fuel` (1 chữ số), `ever_lit`, `relit_count` | AC48 | `phase3.test.ts` › AC48 | Đạt |
+| `fuel ≤ 0` → tắt ngay sau bước 2, `lantern_out`, `deposited 0` | AC49 | `phase3.test.ts` › AC49 | Đạt |
+| Châm dầu `min(mang, ceil((100−fuel)/10))`, `refuel` event, +5/con | AC50 | `phase3.test.ts` › AC50 | Đạt |
+| Thắp lại 5 (đèn `ever_lit`), `lantern_lit.relight`, +40 | AC51 | `phase3.test.ts` › AC51 | Đạt |
+| Sức chứa `10 + 2 × successful_lights` ≤ 20 | AC52 | `phase3.test.ts` › AC52 | Đạt |
+| Đèn < 30 mất vùng an toàn (đúng 30 vẫn còn) | AC53 | `phase3.test.ts` › AC53 | Đạt |
+| Bóng Mực `wander` → đèn yếu → `drain` 5/s cộng dồn, `fuel_drain` mỗi 60 tick | AC54 | `phase3.test.ts` › AC54 | Đạt |
+| Lối ra `drain` (Mây ≤ 6 m, châm ≥ 30, đèn tắt, Tỏa Sáng +15, hết choáng → `wander`) | AC55 | `phase3.test.ts` › AC55 | Đạt |
+| Thắng chỉ lúc bình minh, ngưỡng 3/5 · 4/6 · 5/7, `no_flames` trước; bỏ thưởng thời gian | AC56 | `phase3.test.ts` › AC56 | Đạt |
+| Scenario v1.2 (`fuel`, `ever_lit`, `successful_lights`, `target_lantern_id`, `drain`); sai → mã 2 | AC57 | `phase3.test.ts` › AC57 | Đạt |
+| Thắp hết đèn không kết thúc Đêm, không còn `all_lit` | AC58 | `rules.test.ts` › AC16, AC17 | Đạt |
+| Test Phase 1–2 không bị thay vẫn đạt | — | `rules`, `headless`, `phase2`, `inputs` | Đạt |
+| Mỗi Đêm thắng được theo luật mới (bot qua sim thật, inputs chạy qua CLI ra cùng kết quả) | AC59 | `autoplay.test.ts` (Đêm 1: seed 1/3/7, Đêm 2: 11/14, Đêm 3: 1); [`headless/replays-end.txt`](phase-3/headless/replays-end.txt) | Đạt (bot yếu ở Đêm 2–3: **Chưa đạt** về tỉ lệ thắng, xem `phase-3-assumptions.md` §6) |
+| Tất định + một Đêm 21 600 tick ≤ 30 s | AC43 | [`determinism.txt`](phase-3/headless/determinism.txt), [`timing.txt`](phase-3/headless/timing.txt) (0.8–1.9 s, chạy đủ 21 600 tick) | Đạt |
+| Web: thanh dầu, gợi ý "Châm dầu", HUD `mang / sức chứa` | AC60 | [`01-fuel-bar-refuel-prompt.jpg`](phase-3/01-fuel-bar-refuel-prompt.jpg) | Đạt |
+| Web: đèn tắt xẹp 20% + vết rách (phân biệt không cần màu) | AC60 | [`03-night-start-unlit-lantern.jpg`](phase-3/03-night-start-unlit-lantern.jpg), [`03b-…-zoom.png`](phase-3/03b-unlit-lantern-squashed-torn-zoom.png) | Đạt |
+| Web: chế độ mù màu (viền Bóng Mực `#00B3FF`), màn kết quả thưởng bình minh; điểm 1377 = `end` headless Đêm 1 seed 7 | AC60 | [`02-result-night1-dawn-survived-colorblind.jpg`](phase-3/02-result-night1-dawn-survived-colorblind.jpg) | Đạt |
+| Web: nhấp nháy 1 Hz khi dầu < 30; ⚠ + màu trắng cho cảnh báo ở chế độ mù màu | AC60 | Code `world3d.ts` / `index.html`; chưa có ảnh (ảnh tĩnh không thể hiện nhấp nháy) | Chưa có bằng chứng ảnh |
+
+Kết quả `npm test` tại commit cuối Phase 3: **154/154 đạt**. Replay Phase 3: `?seed=7,11,1&replay=replays/n{night}-seed{seed}-win…`
+dùng seed theo Đêm (`n1-seed7`, `n2-seed11`, `n3-seed1`). Các replay Phase 2 (`n2-seed7`, `n3-seed7`) bị bỏ vì thua theo
+luật mới; xem ở tag `phase-2`.
