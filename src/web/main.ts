@@ -14,6 +14,7 @@ import { NightView } from "./world3d.js";
 
 // ---------- URL options ----------
 // Replay: ?seed=N&night=K&replay=<inputs.json>[&speed=S] plays a contract inputs file through the same step().
+// Whole run: ?seed=7,11,1&replay=replays/n{night}-seed{seed}-win.inputs.json (one seed per night).
 // A "{night}" in the replay URL (e.g. replays/n{night}-seed7-win.inputs.json) replays the whole 3-night run.
 // ?night=K jumps straight to that night's intro; ?fps=1 shows the average FPS (evidence for the 30 FPS target).
 const params = new URLSearchParams(location.search);
@@ -299,7 +300,9 @@ function closeSettings() {
 // ---------- night lifecycle ----------
 function loadNight(n: NightId) {
   night = n;
-  seed = seedParam !== null ? Number(seedParam) : (Date.now() ^ (Math.random() * 0x7fffffff)) >>> 0;
+  // `?seed=7` for every night, or `?seed=7,11,1` = one seed per night (replays of the bot's known wins).
+  const seeds = seedParam?.split(",").map(Number);
+  seed = seeds ? (seeds[n - 1] ?? seeds[0]!) : (Date.now() ^ (Math.random() * 0x7fffffff)) >>> 0;
   world = createWorld(seed, n);
   view?.dispose();
   view = new NightView(MAPS[n], innerWidth / innerHeight);
@@ -498,12 +501,18 @@ if (showFps) {
 }
 
 // ---------- boot ----------
+/** The `?seed=` value for night n (`7` or `7,11,1`), used to fill `{seed}` in a replay URL. */
+function seedFor(n: number): string {
+  const list = (seedParam ?? "").split(",");
+  return list[n - 1] ?? list[0] ?? "";
+}
+
 if (replayUrl) {
   const first: NightId = nightParam >= 1 && nightParam <= 3 ? (nightParam as NightId) : 1;
   const nights: NightId[] = replayUrl.includes("{night}") ? [1, 2, 3] : [first];
   Promise.all(
     nights.map((n) =>
-      fetch(replayUrl.replace("{night}", String(n)))
+      fetch(replayUrl.replace("{night}", String(n)).replace("{seed}", seedFor(n)))
         .then((r) => r.json())
         .then((j) => replays.set(n, parseInputs(j))),
     ),
