@@ -166,3 +166,48 @@ describe("R4/R5/R6 shades", () => {
     expect(events(mixed, "shade_spawned")[0]!.data.id).toBe("S2");
   });
 });
+
+describe("R7/R11 hits and losing", () => {
+  const touching = (extra: Record<string, unknown> = {}) =>
+    scn({ player: { flames: 3, carried: 4 }, shades: [{ id: "S1", pos: [0.5, 1, 0] }], ...extra });
+
+  it("AC8: contact costs a flame and drops floor(carried*hit_drop_ratio) motes 3 m away", () => {
+    const r = run(1, touching());
+    expect(events(r, "player_hit")).toEqual([
+      { type: "event", tick: 1, name: "player_hit", data: { by: "shade", flames: 2, dropped: 2 } },
+    ]);
+    const s = snap(r, 1);
+    expect(s.player).toMatchObject({ flames: 2, carried: 2 });
+    expect(s.motes_active).toBe(2);
+    for (const m of s.motes) expect(xz(m.pos, [0, 0, 0])).toBeCloseTo(3, 2);
+  });
+
+  it("dropped motes can be picked up again", () => {
+    const r = run(1, touching());
+    const dropped = snap(r, 1).motes[0];
+    const r2 = run(60, touching({ shades: [] , motes: [dropped.pos] }), { frames: [{ tick: 0, move: [0, 1] }] }, 60);
+    expect(events(r2, "mote_picked")).toHaveLength(1);
+  });
+
+  it("AC9: invulnerable for invuln_s (90 ticks) after a hit", () => {
+    expect(events(run(90, touching()), "player_hit").map((e) => e.tick)).toEqual([1]);
+    expect(events(run(91, touching()), "player_hit").map((e) => e.tick)).toEqual([1, 91]);
+  });
+
+  it("carrying 1 mote drops 0 (floor)", () => {
+    expect(events(run(1, touching({ player: { flames: 3, carried: 1 } })), "player_hit")[0]!.data.dropped).toBe(0);
+  });
+
+  it("AC10: losing the last flame ends the game (no_flames)", () => {
+    const r = run(100, touching({ player: { flames: 1, carried: 0 } }));
+    expect(events(r, "game_over")).toEqual([
+      { type: "event", tick: 1, name: "game_over", data: { result: "lost", reason: "no_flames" } },
+    ]);
+    expect(r.lines.at(-1)).toEqual({ type: "end", ticks: 1, state: "lost", score: 0 });
+  });
+
+  it("only one hit per tick even with several shades touching", () => {
+    const r = run(1, touching({ shades: [{ id: "S1", pos: [0.5, 1, 0] }, { id: "S2", pos: [-0.5, 1, 0] }] }));
+    expect(events(r, "player_hit")).toHaveLength(1);
+  });
+});

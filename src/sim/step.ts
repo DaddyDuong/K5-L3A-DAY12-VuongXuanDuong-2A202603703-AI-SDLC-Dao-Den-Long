@@ -40,8 +40,9 @@ export function step(w: World, input: InputState): SimEvent[] {
   pickupMotes(w, events);
   if (pressed("interact")) deposit(w, events);
 
-  // TODO(phase-1 rules): pulse, hits.
+  // TODO(phase-1 rules): pulse.
   moveShades(w, t);
+  checkHits(w, t, events);
   spawnShades(w, t, events);
 
   w.steps++;
@@ -157,4 +158,31 @@ function spawnShades(w: World, t: number, events: SimEvent[]): void {
   if (w.shades.length >= WORLD.shade_max) return;
   const s = spawnShadeOnRim(w, Math.PI);
   events.push({ name: "shade_spawned", data: { id: s.id } });
+}
+
+/** R7: first non-stunned shade within shade_hit_radius hits a non-invulnerable player (max one hit per tick). */
+function checkHits(w: World, t: number, events: SimEvent[]): void {
+  if (t < w.invulnUntil) return;
+  const p = w.player;
+  const hitter = w.shades.find((s) => s.state !== "stunned" && distXZ(s.pos, p.pos) <= TUNING.shade_hit_radius);
+  if (!hitter) return;
+  p.flames = Math.max(0, p.flames - 1);
+  const dropped = Math.floor(p.carried * TUNING.hit_drop_ratio);
+  p.carried -= dropped;
+  for (let i = 0; i < dropped; i++) {
+    const a = (2 * Math.PI * i) / dropped;
+    const pos: Vec3 = [
+      p.pos[0] + WORLD.drop_scatter_radius * Math.sin(a),
+      0,
+      p.pos[2] + WORLD.drop_scatter_radius * Math.cos(a),
+    ];
+    const r = Math.hypot(pos[0], pos[2]);
+    if (r > WORLD.island_radius) {
+      pos[0] *= WORLD.island_radius / r;
+      pos[2] *= WORLD.island_radius / r;
+    }
+    w.motes.push({ id: `M${w.nextMoteId++}`, pos });
+  }
+  w.invulnUntil = t + Math.round(TUNING.invuln_s * WORLD.tick_rate);
+  events.push({ name: "player_hit", data: { by: "shade", flames: p.flames, dropped } });
 }
