@@ -36,7 +36,9 @@ export function step(w: World, input: InputState): SimEvent[] {
     p.pos[2] *= WORLD.island_radius / r;
   }
 
-  // TODO(phase-1 rules): pickup, deposit/lantern_lit, shades chase/hit, pulse, win check.
+  pickupMotes(w, events);
+
+  // TODO(phase-1 rules): deposit/lantern_lit, shades chase/hit, pulse, win check.
 
   w.steps++;
   w.prevInput = { ...input, move: [...input.move] };
@@ -46,4 +48,21 @@ export function step(w: World, input: InputState): SimEvent[] {
     events.push({ name: "game_over", data: { result: "lost", reason: "dawn" } });
   }
   return events;
+}
+
+/** XZ-plane distance (contract §B). */
+export function distXZ(a: readonly number[], b: readonly number[]): number {
+  return Math.hypot(a[0]! - b[0]!, a[2]! - b[2]!);
+}
+
+/** R1: auto-pickup every mote within pickup_radius, in id order, until the bag is full. */
+function pickupMotes(w: World, events: SimEvent[]): void {
+  const p = w.player;
+  w.motes = w.motes.filter((m) => {
+    if (p.carried >= TUNING.carry_capacity || distXZ(p.pos, m.pos) > TUNING.pickup_radius) return true;
+    p.carried++;
+    w.score += TUNING.score.per_mote;
+    events.push({ name: "mote_picked", data: { carried: p.carried } });
+    return false;
+  });
 }
