@@ -3,6 +3,12 @@
 3D third-person game (TypeScript + Three.js + Vite), 3 nights on 3 islands. Graded by a hidden test suite through the
 **headless mode** defined by Test Contract **v1.1** (Ticket-02, copied to `docs/notes/ticket-02.md`). Correct > pretty.
 
+## Requirement sources (read the new phase's tab before planning)
+- Lab board (tickets, one tab per phase): https://claude.ai/artifact/Q1RYyv1dxjUczzCbd2ZnoW — cross-origin iframe, text
+  tools return nothing: read it with Claude in Chrome screenshots, then copy the ticket to `docs/notes/ticket-0N.md`.
+- Instructor slides (grading, phase DoD): https://blgihuy.github.io/k5-day12-instructor-slides/ — JS app; slide text is a
+  JSON array inside `assets/index-*.js`. Summary + DoD checklist already in `docs/notes/instructor-guide.md`.
+
 ## Commands
 - Install/build: `npm ci && npm run build`
 - Tests (builds headless first): `npm test`  ← must be green before you finish (Stop hook enforces it)
