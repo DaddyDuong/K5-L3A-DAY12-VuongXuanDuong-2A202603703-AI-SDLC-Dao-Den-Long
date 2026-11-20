@@ -1,153 +1,102 @@
-// Rendering + keyboard only. All gameplay lives in src/sim and is shared with the headless runner.
+// Rendering, screens and keyboard/mouse only. All gameplay lives in src/sim (same step() as headless).
+// Flow (Ticket-02 item 3): menu → night intro → play → result → next night … → Bình Minh after night 3.
 import * as THREE from "three";
-import { distXZ, step } from "../sim/step.js";
+import { InputTimeline, parseInputs, type InputFrame } from "../sim/inputs.js";
+import { MAPS, type NightId } from "../sim/maps.js";
+import { step } from "../sim/step.js";
 import { TUNING, WORLD } from "../sim/tuning.js";
 import { DEFAULT_INPUT, type InputState, type SimEvent, type World } from "../sim/types.js";
 import { createWorld, timeLeftS } from "../sim/world.js";
-import { InputTimeline, parseInputs, type InputFrame } from "../sim/inputs.js";
+import { Sound } from "./audio.js";
+import { Hud } from "./hud.js";
+import { SENSITIVITY_RANGE, loadSettings, saveSettings } from "./settings.js";
+import { NightView } from "./world3d.js";
 
-// Replay mode: ?seed=N&replay=<inputs.json>[&speed=K] plays a contract inputs file through the same step().
+// ---------- URL options ----------
+// Replay: ?seed=N&night=K&replay=<inputs.json>[&speed=S] plays a contract inputs file through the same step().
+// A "{night}" in the replay URL (e.g. replays/n{night}-seed7-win.inputs.json) replays the whole 3-night run.
+// ?night=K jumps straight to that night's intro; ?fps=1 shows the average FPS (evidence for the 30 FPS target).
 const params = new URLSearchParams(location.search);
 const seedParam = params.get("seed");
+const nightParam = Number(params.get("night") ?? "0");
 const replayUrl = params.get("replay");
 const speed = Math.max(0.25, Number(params.get("speed") ?? "1") || 1);
-let replayFrames: InputFrame[] | null = null;
-let timeline: InputTimeline | null = null;
-let endReason = "";
+const showFps = params.has("fps");
 
-const COLORS = { warm: 0xffa040, danger: 0x3a1450, island: 0x2d3b2a, sky: 0x0b0614 };
+const INTROS: Record<NightId, string> = {
+  1: "Mây à, đèn trên Đảo Bến tắt hết cả rồi. Gom đom đóm, thắp lại năm ngọn đèn trước khi trời sáng nhé. Bóng Mực sợ ánh đèn, nhớ đứng gần đèn đã thắp khi bị đuổi.",
+  2: "Đảo Cau là hai hòn nối nhau bằng chiếc cầu tre không lan can. Bục nhảy sẽ hất con sang bờ bên kia. Coi chừng Gió Lạc: mang nhiều đom đóm là nó tới giật đấy.",
+  3: "Tháp chuông đứng trên ba tầng đá của Đảo Chuông. Gió mạnh thổi từng cơn, thấy lá bay là gió sắp tới. Thắp đủ bảy ngọn đèn để chuông ngân đón bình minh.",
+};
+const REASONS: Record<string, string> = {
+  all_lit: "Mọi Đèn Lồng Lớn đã sáng.",
+  no_flames: "Mây đã hết Ngọn Lửa.",
+  dawn: "Trời đã sáng mà đảo vẫn chưa đủ đèn.",
+};
 
-// ---------- three.js scene ----------
-const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+// ---------- renderer ----------
+const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
 renderer.setSize(innerWidth, innerHeight);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
 document.body.prepend(renderer.domElement);
 
-const scene = new THREE.Scene();
-scene.background = new THREE.Color(COLORS.sky);
-scene.fog = new THREE.Fog(COLORS.danger, 15, 70);
-const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.1, 300);
-const ambient = new THREE.HemisphereLight(0x6a4c9c, 0x10081a, 0.6);
-scene.add(ambient);
-const fogDark = new THREE.Color(COLORS.danger);
-const fogWarm = new THREE.Color(0x6a4a3a);
+const settings = loadSettings();
+const sound = new Sound(settings.volume);
+const hud = new Hud();
+const screen = document.getElementById("screen")!;
+const fpsEl = document.getElementById("fps")!;
+fpsEl.classList.toggle("hidden", !showFps);
 
-// Pulse effect: a warm ring that expands to pulse_radius and fades.
-const pulseRing = new THREE.Mesh(
-  new THREE.RingGeometry(0.9, 1, 48),
-  new THREE.MeshBasicMaterial({ color: COLORS.warm, transparent: true, opacity: 0, side: THREE.DoubleSide }),
-);
-pulseRing.rotation.x = -Math.PI / 2;
-scene.add(pulseRing);
-let pulseFxStart = -1;
-let hitFxStart = -1;
-
-const island = new THREE.Mesh(
-  new THREE.CylinderGeometry(WORLD.island_radius, WORLD.island_radius * 0.8, 3, 64),
-  new THREE.MeshStandardMaterial({ color: COLORS.island }),
-);
-island.position.y = -1.5;
-scene.add(island);
-
-// Player "Mây": warm tunic, head, wide straw conical hat (nón lá), paper lantern hanging from the brim.
-// Materials get a little self-glow so the silhouette reads in the dark night.
-const glowMat = (color: number, emissive: number, emissiveIntensity: number) =>
-  new THREE.MeshStandardMaterial({ color, emissive, emissiveIntensity });
-const player = new THREE.Group();
-const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.3, 0.55, 4, 12), glowMat(0xb5523b, 0x5a1e14, 0.5));
-body.position.y = 0.6;
-const head = new THREE.Mesh(new THREE.SphereGeometry(0.26, 16, 12), glowMat(0xf2c9a0, 0x6b4a30, 0.45));
-head.position.y = 1.28;
-const hat = new THREE.Mesh(new THREE.ConeGeometry(0.85, 0.42, 32), glowMat(0xf0dc9c, 0x8a7238, 0.7));
-hat.position.y = 1.62;
-// Lantern pivot hangs under the right edge of the brim (local -X is screen-right from the
-// chase camera) so it stays visible, and swings while walking.
-const lanternPivot = new THREE.Group();
-lanternPivot.position.set(-0.68, 1.5, -0.05);
-const cord = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.3, 6), new THREE.MeshBasicMaterial({ color: 0x3a2a1a }));
-cord.position.y = -0.15;
-const paperLantern = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.22, 12), glowMat(0xff6a30, 0xff5a20, 2.2));
-paperLantern.position.y = -0.41;
-const capMat = new THREE.MeshStandardMaterial({ color: 0xd4a640 });
-const capTop = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.03, 10), capMat);
-capTop.position.y = -0.29;
-const capBottom = capTop.clone();
-capBottom.position.y = -0.53;
-const playerLight = new THREE.PointLight(COLORS.warm, 10, 11);
-playerLight.position.y = -0.41;
-lanternPivot.add(cord, paperLantern, capTop, capBottom, playerLight);
-player.add(body, head, hat, lanternPivot);
-scene.add(player);
-let lastPlayerPos = new THREE.Vector3();
-
-const moteGeo = new THREE.SphereGeometry(0.15, 10, 8);
-const moteMat = new THREE.MeshStandardMaterial({ color: 0xfff2a0, emissive: 0xffe066, emissiveIntensity: 3 });
-const shadeGeo = new THREE.SphereGeometry(0.7, 16, 12);
-const shadeMat = new THREE.MeshStandardMaterial({ color: 0x1a0624, emissive: 0x5a1a80, emissiveIntensity: 0.6 });
-const shadeStunMat = new THREE.MeshStandardMaterial({ color: 0x6a5a80, transparent: true, opacity: 0.5 });
-
-interface LanternView { lamp: THREE.Mesh; light: THREE.PointLight; group: THREE.Group; safeRing: THREE.Mesh }
-let lanternViews = new Map<string, LanternView>();
-const moteViews = new Map<string, THREE.Mesh>();
-const shadeViews = new Map<string, THREE.Mesh>();
-
-function buildLanterns(w: World) {
-  for (const v of lanternViews.values()) scene.remove(v.group);
-  lanternViews = new Map();
-  for (const l of w.lanterns) {
-    const group = new THREE.Group();
-    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.15, 3, 8), glowMat(0x9a6a44, 0x3a2414, 0.6));
-    pole.position.y = 1.5;
-    // Big paper lantern: dimly glowing when unlit so it can be found from afar, bright when lit.
-    const lamp = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 0.9, 16), glowMat(0xc8603a, 0xff8a40, 0.3));
-    lamp.position.y = 3.5;
-    const roof = new THREE.Mesh(new THREE.ConeGeometry(0.75, 0.35, 16), glowMat(0x5a3020, 0x2a1408, 0.6));
-    roof.position.y = 4.12;
-    const light = new THREE.PointLight(COLORS.warm, 0, 18);
-    light.position.y = 3.5;
-    // Base marker (always) + safe-zone ring (only when lit: unlit lanterns do not protect, R6).
-    const marker = new THREE.Mesh(
-      new THREE.RingGeometry(1.0, 1.25, 40),
-      new THREE.MeshBasicMaterial({ color: 0xffb070, transparent: true, opacity: 0.35, side: THREE.DoubleSide }),
-    );
-    marker.rotation.x = -Math.PI / 2;
-    marker.position.y = 0.03;
-    const safeRing = new THREE.Mesh(
-      new THREE.RingGeometry(TUNING.safe_radius - 0.12, TUNING.safe_radius, 64),
-      new THREE.MeshBasicMaterial({ color: COLORS.warm, transparent: true, opacity: 0.45, side: THREE.DoubleSide }),
-    );
-    safeRing.rotation.x = -Math.PI / 2;
-    safeRing.position.y = 0.04;
-    safeRing.visible = false;
-    group.add(pole, lamp, roof, light, marker, safeRing);
-    group.position.set(...l.pos);
-    scene.add(group);
-    lanternViews.set(l.id, { lamp, light, group, safeRing });
-  }
-}
-
-function syncMap<T extends { id: string; pos: [number, number, number] }>(
-  items: T[], views: Map<string, THREE.Mesh>, make: () => THREE.Mesh, update: (m: THREE.Mesh, it: T) => void,
-) {
-  const alive = new Set(items.map((i) => i.id));
-  for (const [id, m] of views) if (!alive.has(id)) { scene.remove(m); views.delete(id); }
-  for (const it of items) {
-    let m = views.get(it.id);
-    if (!m) { m = make(); scene.add(m); views.set(it.id, m); }
-    update(m, it);
-  }
-}
+type Mode = "menu" | "intro" | "play" | "paused" | "settings" | "result" | "dawn";
+let mode: Mode = "menu";
+let settingsBack: Mode = "menu";
+let night: NightId = 1;
+let seed = 0;
+let world: World | null = null;
+let view: NightView | null = null;
+let timeline: InputTimeline | null = null;
+const replays = new Map<NightId, InputFrame[]>();
+let camYawDeg = 0;
+let endAt = -1;
+let endReason = "";
+let lastCountdown = -1;
+let windWarned = false;
+const wonScores = new Map<NightId, number>();
 
 // ---------- input ----------
 const keys = new Set<string>();
-let camYawDeg = 0;
-addEventListener("keydown", (e) => { keys.add(e.code); if (e.code === "KeyR") restart(); });
+const GAME_KEYS = new Set(["KeyW", "KeyA", "KeyS", "KeyD", "Space", "ShiftLeft", "ShiftRight", "ArrowLeft", "ArrowRight", "KeyE", "KeyF"]);
+addEventListener("keydown", (e) => {
+  sound.unlock();
+  if (GAME_KEYS.has(e.code)) e.preventDefault();
+  keys.add(e.code);
+  if (e.repeat) return;
+  if (e.code === "Escape" || e.code === "KeyP") {
+    if (mode === "play") pause();
+    else if (mode === "paused") resume();
+    else if (mode === "settings") closeSettings();
+  } else if (e.code === "Enter" || (e.code === "Space" && mode !== "play")) {
+    const primary = screen.querySelector<HTMLButtonElement>("button.primary");
+    if (primary && mode !== "play") primary.click();
+  }
+});
 addEventListener("keyup", (e) => keys.delete(e.code));
-renderer.domElement.addEventListener("click", () => renderer.domElement.requestPointerLock());
-addEventListener("mousemove", (e) => { if (document.pointerLockElement) camYawDeg -= e.movementX * 0.25; });
+addEventListener("blur", () => keys.clear());
+renderer.domElement.addEventListener("click", () => {
+  sound.unlock();
+  if (mode === "play" && !timeline) void renderer.domElement.requestPointerLock?.();
+});
+addEventListener("mousemove", (e) => {
+  if (document.pointerLockElement === renderer.domElement && mode === "play") camYawDeg -= e.movementX * settings.mouseSensitivity;
+});
+// Losing the pointer lock (Esc) while playing pauses the game.
+document.addEventListener("pointerlockchange", () => {
+  if (!document.pointerLockElement && mode === "play" && !timeline) pause();
+});
 
 function readInput(): InputState {
-  // Camera faces +Z at yaw 0, so screen-right is -X: D maps to x = -1 (see contract §C rotation).
+  // Camera faces +Z at yaw 0, so screen-right is −X: D maps to x = −1 (contract §C rotation).
   const x = (keys.has("KeyA") ? 1 : 0) - (keys.has("KeyD") ? 1 : 0);
   const z = (keys.has("KeyW") ? 1 : 0) - (keys.has("KeyS") ? 1 : 0);
   if (keys.has("ArrowLeft")) camYawDeg += 2;
@@ -159,132 +108,393 @@ function readInput(): InputState {
     jump: keys.has("Space"),
     interact: keys.has("KeyE"),
     pulse: keys.has("KeyF"),
+    dash: keys.has("ShiftLeft") || keys.has("ShiftRight"),
   };
 }
 
-// ---------- game loop (fixed 60 Hz, same step() as headless) ----------
-let world: World;
-let seed = 0;
-function restart() {
-  seed = seedParam !== null ? Number(seedParam) : (Date.now() & 0x7fffffff) >>> 0;
-  world = createWorld(seed);
-  buildLanterns(world);
-  timeline = replayFrames ? new InputTimeline(replayFrames) : null;
-  endReason = "";
-}
-restart();
-if (replayUrl) {
-  fetch(replayUrl)
-    .then((r) => r.json())
-    .then((j) => { replayFrames = parseInputs(j); restart(); })
-    .catch((e) => console.error("replay load failed", e));
+// ---------- screens ----------
+function render(html: string) {
+  screen.innerHTML = html;
+  screen.classList.toggle("hidden", html === "");
+  for (const b of screen.querySelectorAll<HTMLButtonElement>("button[data-act]")) {
+    b.addEventListener("click", () => {
+      sound.unlock();
+      sound.play("click");
+      ACTIONS[b.dataset.act!]?.(b.dataset.arg ?? "");
+    });
+  }
 }
 
-function nextInput(): InputState {
+const ACTIONS: Record<string, (arg: string) => void> = {
+  start: () => {
+    wonScores.clear();
+    showIntro(1);
+  },
+  night: (n) => showIntro(Number(n) as NightId),
+  go: () => beginPlay(),
+  resume: () => resume(),
+  restart: () => showIntro(night),
+  menu: () => showMenu(),
+  settings: () => openSettings(),
+  back: () => closeSettings(),
+  next: () => (night < 3 ? showIntro((night + 1) as NightId) : showDawn()),
+};
+
+function showMenu() {
+  mode = "menu";
+  hud.show(false);
+  sound.stopMusic();
+  if (document.pointerLockElement) document.exitPointerLock();
+  loadNight(nightParam >= 1 && nightParam <= 3 ? (nightParam as NightId) : 1);
+  render(`
+    <div class="panel menu">
+      <h1>Đảo Đèn Lồng</h1>
+      <p class="sub">Ba đêm, ba hòn đảo. Gom đom đóm, thắp lại đèn lồng trước bình minh.</p>
+      <button class="primary" data-act="start">Bắt đầu hành trình</button>
+      <div class="row">
+        ${([1, 2, 3] as NightId[]).map((n) => `<button data-act="night" data-arg="${n}">Đêm ${n} · ${MAPS[n].name}</button>`).join("")}
+      </div>
+      <button data-act="settings">Cài đặt</button>
+      <p class="keys">WASD di chuyển · Chuột / ← → xoay camera · Space nhảy · Shift lướt · E nạp đèn · F tỏa sáng · Esc / P tạm dừng</p>
+    </div>`);
+}
+
+function showIntro(n: NightId) {
+  mode = "intro";
+  hud.show(false);
+  loadNight(n);
+  render(`
+    <div class="panel intro">
+      <div class="eyebrow">Đêm ${n} / 3</div>
+      <h1>${MAPS[n].name}</h1>
+      <blockquote>“${INTROS[n]}”<cite>— Ông Đăng</cite></blockquote>
+      <p class="sub">${MAPS[n].lanterns.length} Đèn Lồng Lớn · ${Math.round(MAPS[n].duration_s / 60 * 10) / 10} phút tới bình minh</p>
+      <button class="primary" data-act="go">Vào đêm (Enter)</button>
+      <button data-act="menu">Về menu</button>
+    </div>`);
+}
+
+function showResult() {
+  mode = "result";
+  hud.show(false);
+  if (document.pointerLockElement) document.exitPointerLock();
+  const w = world!;
+  const won = w.state === "won";
+  if (won) wonScores.set(night, Math.max(wonScores.get(night) ?? 0, w.score));
+  const lit = w.lanterns.filter((l) => l.lit).length;
+  const bonusTime = won ? Math.floor(timeLeftS(w)) * TUNING.score.per_second_left : 0;
+  const bonusFlames = won ? w.player.flames * TUNING.score.per_flame_left : 0;
+  render(`
+    <div class="panel result ${won ? "won" : "lost"}">
+      <div class="eyebrow">Đêm ${night} · ${MAPS[night].name}${timeline ? " · REPLAY" : ""}</div>
+      <h1>${won ? "Đảo đã sáng lại!" : "Bóng tối thắng đêm nay"}</h1>
+      <p class="sub">${endReason}</p>
+      <table>
+        <tr><td>Đèn đã thắp</td><td>${lit}/${w.lanterns.length}</td></tr>
+        ${won ? `<tr><td>Thưởng thời gian (${Math.floor(timeLeftS(w))} s × ${TUNING.score.per_second_left})</td><td>+${bonusTime}</td></tr>
+        <tr><td>Thưởng Ngọn Lửa (${w.player.flames} × ${TUNING.score.per_flame_left})</td><td>+${bonusFlames}</td></tr>` : ""}
+        <tr class="total"><td>Điểm Đêm ${night}</td><td>${w.score}</td></tr>
+      </table>
+      ${won
+        ? `<button class="primary" data-act="next">${night < 3 ? `Đêm ${night + 1} →` : "Đón Bình Minh →"}</button>`
+        : `<button class="primary" data-act="restart">Chơi lại Đêm ${night}</button>`}
+      <button data-act="menu">Về menu</button>
+    </div>`);
+}
+
+function showDawn() {
+  mode = "dawn";
+  hud.show(false);
+  sound.stopMusic();
+  sound.play("win");
+  const total = [...wonScores.values()].reduce((a, b) => a + b, 0);
+  render(`
+    <div class="panel dawn">
+      <div class="eyebrow">Bình Minh</div>
+      <h1>Ba hòn đảo đã sáng đèn</h1>
+      <p class="sub">Chuông Đảo Chuông ngân lên, mặt trời nhô khỏi biển mây.</p>
+      <table>
+        ${([1, 2, 3] as NightId[]).map((n) => `<tr><td>Đêm ${n} · ${MAPS[n].name}</td><td>${wonScores.get(n) ?? "—"}</td></tr>`).join("")}
+        <tr class="total"><td>Tổng điểm</td><td>${total}</td></tr>
+      </table>
+      <button class="primary" data-act="menu">Về menu</button>
+    </div>`);
+  document.body.classList.add("dawn");
+}
+
+function pause() {
+  if (mode !== "play" || !world || world.state !== "playing") return;
+  mode = "paused";
+  if (document.pointerLockElement) document.exitPointerLock();
+  render(`
+    <div class="panel pause">
+      <h1>Tạm dừng</h1>
+      <button class="primary" data-act="resume">Tiếp tục</button>
+      <button data-act="restart">Chơi lại Đêm</button>
+      <button data-act="settings">Cài đặt</button>
+      <button data-act="menu">Về menu</button>
+    </div>`);
+}
+
+function resume() {
+  if (mode !== "paused") return;
+  mode = "play";
+  render("");
+  last = performance.now();
+  if (!timeline) void renderer.domElement.requestPointerLock?.();
+}
+
+function openSettings() {
+  settingsBack = mode === "paused" ? "paused" : "menu";
+  mode = "settings";
+  const sens = Math.round(((settings.mouseSensitivity - SENSITIVITY_RANGE.min) / (SENSITIVITY_RANGE.max - SENSITIVITY_RANGE.min)) * 100);
+  render(`
+    <div class="panel settings">
+      <h1>Cài đặt</h1>
+      <label>Âm lượng <output id="vol-out">${Math.round(settings.volume * 100)}</output>
+        <input id="vol" type="range" min="0" max="100" value="${Math.round(settings.volume * 100)}"></label>
+      <label>Độ nhạy chuột <output id="sens-out">${sens}</output>
+        <input id="sens" type="range" min="0" max="100" value="${sens}"></label>
+      <p class="sub">Được lưu lại cho lần mở game sau.</p>
+      <button class="primary" data-act="back">Xong</button>
+    </div>`);
+  const vol = document.getElementById("vol") as HTMLInputElement;
+  const sensEl = document.getElementById("sens") as HTMLInputElement;
+  vol.addEventListener("input", () => {
+    settings.volume = Number(vol.value) / 100;
+    document.getElementById("vol-out")!.textContent = vol.value;
+    sound.setVolume(settings.volume);
+    saveSettings(settings);
+  });
+  vol.addEventListener("change", () => sound.play("pick"));
+  sensEl.addEventListener("input", () => {
+    settings.mouseSensitivity = SENSITIVITY_RANGE.min + (Number(sensEl.value) / 100) * (SENSITIVITY_RANGE.max - SENSITIVITY_RANGE.min);
+    document.getElementById("sens-out")!.textContent = sensEl.value;
+    saveSettings(settings);
+  });
+}
+
+function closeSettings() {
+  if (settingsBack === "paused") {
+    mode = "play"; // pause() requires play mode
+    pause();
+  } else showMenu();
+}
+
+// ---------- night lifecycle ----------
+function loadNight(n: NightId) {
+  night = n;
+  seed = seedParam !== null ? Number(seedParam) : (Date.now() ^ (Math.random() * 0x7fffffff)) >>> 0;
+  world = createWorld(seed, n);
+  view?.dispose();
+  view = new NightView(MAPS[n], innerWidth / innerHeight);
+  camYawDeg = 0;
+  endAt = -1;
+  endReason = "";
+  lastCountdown = -1;
+  windWarned = false;
+  document.body.classList.remove("dawn");
+  const frames = replays.get(n);
+  timeline = frames ? new InputTimeline(frames) : null;
+  hud.setTag(`Đêm ${n} · ${MAPS[n].name} · seed ${seed}${timeline ? ` · REPLAY ×${speed}` : ""}`);
+}
+
+function beginPlay() {
+  mode = "play";
+  render("");
+  hud.show(true);
+  sound.startMusic(night);
+  last = performance.now();
+  acc = 0;
+  if (!timeline) void renderer.domElement.requestPointerLock?.();
+}
+
+// ---------- game loop: fixed 60 Hz, same step() as headless ----------
+const DT = 1 / WORLD.tick_rate;
+let acc = 0;
+let last = performance.now();
+let fpsFrames = 0;
+let fpsSince = performance.now();
+const fpsSamples: number[] = [];
+
+function nextInput(w: World): InputState {
   if (!timeline) return readInput();
-  const input = timeline.at(world.steps);
+  const input = timeline.at(w.steps);
   camYawDeg = input.cam_yaw_deg;
   return input;
 }
 
-const hud = document.getElementById("hud")!;
-const overlay = document.getElementById("overlay")!;
-const DT = 1 / WORLD.tick_rate;
-let acc = 0;
-let last = performance.now();
-
-function frame(now: number) {
-  acc += Math.min(0.25, (now - last) / 1000) * speed;
-  last = now;
-  while (acc >= DT) { onEvents(step(world, nextInput()), now / 1000); acc -= DT; }
-  render(now / 1000);
-  requestAnimationFrame(frame);
-}
-
 function onEvents(events: SimEvent[], t: number) {
+  const v = view!;
   for (const e of events) {
-    if (e.name === "pulse") pulseFxStart = t;
-    if (e.name === "player_hit") hitFxStart = t;
-    if (e.name === "game_over") endReason = REASONS[e.data.reason as string] ?? "";
+    switch (e.name) {
+      case "mote_picked":
+        sound.play("pick");
+        break;
+      case "deposit":
+        sound.play("deposit");
+        break;
+      case "lantern_lit":
+        sound.play("light");
+        v.lanternLitFx(e.data.lantern_id as string, t);
+        hud.flash("Một ngọn đèn đã sáng!", 1.8, t);
+        break;
+      case "pulse":
+        sound.play("pulse");
+        v.pulseFx(t);
+        break;
+      case "player_hit":
+        sound.play("hit");
+        document.body.classList.remove("hit");
+        void document.body.offsetWidth;
+        document.body.classList.add("hit");
+        if (e.data.by === "fall") hud.flash("Rơi xuống biển mây!", 2, t, true);
+        break;
+      case "dash":
+        sound.play("dash");
+        v.dashFx(t);
+        break;
+      case "charm_picked":
+        sound.play("charm");
+        hud.flash("Bùa Gió: chạy nhanh, lướt không hồi chiêu (10 s)", 2.5, t);
+        break;
+      case "drifter_steal":
+        sound.play("steal");
+        hud.flash(`Gió Lạc cướp mất ${e.data.amount} đom đóm!`, 2, t, true);
+        break;
+      case "drifter_drop":
+        sound.play("pick");
+        hud.flash("Gió Lạc đánh rơi đom đóm!", 1.8, t);
+        break;
+      case "shade_spawned":
+        sound.play("shade");
+        break;
+      case "game_over":
+        endReason = REASONS[e.data.reason as string] ?? "";
+        endAt = t;
+        sound.stopMusic();
+        sound.play(e.data.result === "won" ? "win" : "lose");
+        break;
+    }
   }
 }
 
-const REASONS: Record<string, string> = {
-  all_lit: "Cả 5 Đèn Lồng Lớn đã sáng.",
-  no_flames: "Mây đã hết lửa.",
-  dawn: "Trời đã sáng mà đảo vẫn chưa sáng đèn.",
-};
-
-function render(t: number) {
+function tick(now: number) {
+  const t = now / 1000;
   const w = world;
-  player.position.set(...w.player.pos);
-  // Blink while invulnerable after a hit.
-  player.visible = w.steps >= w.invulnUntil || Math.floor(t * 10) % 2 === 0;
-  const yaw = (camYawDeg * Math.PI) / 180;
-  player.rotation.y = yaw;
-  // Lantern sways: gentle idle bob, stronger swing while moving.
-  const moved = lastPlayerPos.distanceTo(player.position);
-  lastPlayerPos = player.position.clone();
-  const swing = Math.min(1, moved / 0.1);
-  lanternPivot.rotation.x = (0.05 + 0.3 * swing) * Math.sin(t * 7);
-  lanternPivot.rotation.z = 0.04 * Math.sin(t * 2.3);
-  const back = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw)).multiplyScalar(-8);
-  camera.position.set(w.player.pos[0] + back.x, w.player.pos[1] + 3.2, w.player.pos[2] + back.z);
-  camera.lookAt(w.player.pos[0], w.player.pos[1] + 1.4, w.player.pos[2]);
-
-  let lit = 0;
-  for (const l of w.lanterns) {
-    const v = lanternViews.get(l.id)!;
-    const mat = v.lamp.material as THREE.MeshStandardMaterial;
-    if (l.lit) lit++;
-    // Glow grows with the deposited amount; full light once lit.
-    const fill = Math.min(1, l.deposited / TUNING.lantern_cost);
-    mat.emissive.setHex(COLORS.warm);
-    mat.emissiveIntensity = l.lit ? 2.5 : 0.3 + 0.7 * fill;
-    v.light.intensity = l.lit ? 40 : 4 * fill;
-    v.safeRing.visible = l.lit;
+  const v = view;
+  if (w && v) {
+    if (mode === "play" && w.state === "playing") {
+      acc += Math.min(0.25, (now - last) / 1000) * (timeline ? speed : 1);
+      while (acc >= DT && w.state === "playing") {
+        const wasGrounded = w.player.grounded;
+        const input = nextInput(w);
+        onEvents(step(w, input), t);
+        if (wasGrounded && !w.player.grounded && w.player.vy > 5 && !w.player.launch) sound.play("jump");
+        acc -= DT;
+      }
+      // Last 10 seconds: one tick per second.
+      const left = Math.ceil(timeLeftS(w));
+      if (left <= 10 && left > 0 && left !== lastCountdown) {
+        lastCountdown = left;
+        sound.play("tick");
+      }
+      // Gust announced 2 s ahead: leaves + sound.
+      if (w.wind.warning && !windWarned) {
+        windWarned = true;
+        sound.play("wind");
+        hud.flash("Gió mạnh sắp thổi!", 2, t, true);
+      }
+      if (!w.wind.warning) windWarned = false;
+    }
+    last = now;
+    if (mode === "play" && endAt >= 0 && t - endAt > 1.4) showResult();
+    if (mode === "intro" || mode === "menu") camYawDeg += 0.08; // slow orbit behind the menus
+    v.update(w, camYawDeg, t);
+    if (mode === "play" || mode === "paused") hud.update(w, v.camera, t);
+    renderer.render(v.scene, v.camera);
   }
-  // The island brightens as lanterns are lit.
-  const k = lit / w.lanterns.length;
-  ambient.intensity = 0.6 + 1.2 * k;
-  (scene.fog as THREE.Fog).color.copy(fogDark).lerp(fogWarm, k);
-  (scene.background as THREE.Color).copy(new THREE.Color(COLORS.sky)).lerp(new THREE.Color(0x2a1a30), k);
-
-  // Pulse ring + hit flash.
-  const pa = pulseFxStart < 0 ? 1 : (t - pulseFxStart) / 0.4;
-  const pm = pulseRing.material as THREE.MeshBasicMaterial;
-  pm.opacity = pa < 1 ? 0.8 * (1 - pa) : 0;
-  const ringR = Math.max(0.01, TUNING.pulse_radius * Math.min(1, pa));
-  pulseRing.scale.set(ringR, ringR, 1);
-  pulseRing.position.set(w.player.pos[0], 0.05, w.player.pos[2]);
-  const hitA = hitFxStart < 0 ? 1 : (t - hitFxStart) / 0.3;
-  document.body.style.boxShadow = hitA < 1 ? `inset 0 0 120px rgba(150,40,200,${0.8 * (1 - hitA)})` : "none";
-
-  const nearLantern = w.lanterns.some((l) => !l.lit && distXZ(w.player.pos, l.pos) <= TUNING.interact_radius);
-  const pulseReady = w.steps >= w.pulseReadyAt && w.player.carried >= TUNING.pulse_cost;
-  syncMap(w.motes, moteViews, () => new THREE.Mesh(moteGeo, moteMat), (m, it) =>
-    m.position.set(it.pos[0], 0.6 + 0.15 * Math.sin(t * 3 + it.pos[0]), it.pos[2]));
-  syncMap(w.shades, shadeViews, () => new THREE.Mesh(shadeGeo, shadeMat), (m, it) => {
-    m.position.set(...it.pos);
-    m.material = it.state === "stunned" ? shadeStunMat : shadeMat;
-  });
-
-  hud.innerHTML =
-    `Thời gian: ${timeLeftS(w).toFixed(0)}s · Điểm: ${w.score}<br>` +
-    `Lửa: ${"♥".repeat(w.player.flames)} · Đom đóm: ${w.player.carried}/${TUNING.carry_capacity}<br>` +
-    `Đèn: ${lit}/${w.lanterns.length} · Tỏa sáng (F): ${pulseReady ? "sẵn sàng" : "chưa"}` +
-    (nearLantern && w.player.carried > 0 ? `<br><b>Nhấn E để nạp đèn</b>` : "") +
-    `<br><small>seed ${seed}${timeline ? ` · REPLAY ×${speed}` : ""}</small>`;
-  overlay.innerHTML = w.state === "playing" ? "" :
-    `<h1>${w.state === "won" ? "Đảo đã sáng lại!" : "Bóng tối thắng đêm nay"}</h1>` +
-    `<div>${endReason}</div><div>Điểm: ${w.score} · Nhấn R để chơi lại</div>`;
-
-  renderer.render(scene, camera);
+  // FPS meter (average over 1 s windows).
+  fpsFrames++;
+  if (now - fpsSince >= 1000) {
+    const fps = (fpsFrames * 1000) / (now - fpsSince);
+    fpsSamples.push(fps);
+    if (fpsSamples.length > 30) fpsSamples.shift();
+    const avg = fpsSamples.reduce((a, b) => a + b, 0) / fpsSamples.length;
+    fpsEl.textContent = `${fps.toFixed(0)} FPS · TB ${avg.toFixed(1)} (${fpsSamples.length}s) · ${innerWidth}×${innerHeight}`;
+    fpsFrames = 0;
+    fpsSince = now;
+  }
+  requestAnimationFrame(tick);
 }
 
 addEventListener("resize", () => {
-  camera.aspect = innerWidth / innerHeight;
-  camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
+  view?.resize(innerWidth / innerHeight);
 });
-requestAnimationFrame(frame);
+
+// ---------- benchmark (?fps only) ----------
+// rAF is throttled when the browser window is hidden/occluded, so the FPS meter can under-report.
+// __bench(n) renders n frames back-to-back at a 1280×720 drawing buffer (pixel ratio 1) and waits for the GPU
+// each frame (readPixels), giving the real cost per frame of the current scene.
+if (showFps) {
+  (window as unknown as { __bench: (n?: number) => unknown }).__bench = (n = 120) => {
+    if (!world || !view) return null;
+    const prevRatio = renderer.getPixelRatio();
+    renderer.setPixelRatio(1);
+    renderer.setSize(1280, 720, false);
+    view.resize(1280 / 720);
+    const gl = renderer.getContext();
+    const px = new Uint8Array(4);
+    const times: number[] = [];
+    for (let i = 0; i < n; i++) {
+      const t0 = performance.now();
+      view.update(world, camYawDeg + i * 0.5, t0 / 1000);
+      renderer.render(view.scene, view.camera);
+      gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
+      times.push(performance.now() - t0);
+    }
+    renderer.setPixelRatio(prevRatio);
+    renderer.setSize(innerWidth, innerHeight);
+    view.resize(innerWidth / innerHeight);
+    times.sort((a, b) => a - b);
+    const avg = times.reduce((a, b) => a + b, 0) / n;
+    const info = renderer.info.render;
+    return {
+      night,
+      tick: world.steps,
+      shades: world.shades.length,
+      motes: world.motes.length,
+      lit: world.lanterns.filter((l) => l.lit).length,
+      frames: n,
+      avgMs: +avg.toFixed(2),
+      p95Ms: +times[Math.floor(n * 0.95)]!.toFixed(2),
+      fpsEquivalent: +(1000 / avg).toFixed(1),
+      drawCalls: info.calls,
+      triangles: info.triangles,
+    };
+  };
+}
+
+// ---------- boot ----------
+if (replayUrl) {
+  const first: NightId = nightParam >= 1 && nightParam <= 3 ? (nightParam as NightId) : 1;
+  const nights: NightId[] = replayUrl.includes("{night}") ? [1, 2, 3] : [first];
+  Promise.all(
+    nights.map((n) =>
+      fetch(replayUrl.replace("{night}", String(n)))
+        .then((r) => r.json())
+        .then((j) => replays.set(n, parseInputs(j))),
+    ),
+  )
+    .then(() => {
+      loadNight(first);
+      beginPlay();
+    })
+    .catch((e) => {
+      console.error("replay load failed", e);
+      showMenu();
+    });
+} else if (nightParam >= 1 && nightParam <= 3) showIntro(nightParam as NightId);
+else showMenu();
+requestAnimationFrame(tick);
