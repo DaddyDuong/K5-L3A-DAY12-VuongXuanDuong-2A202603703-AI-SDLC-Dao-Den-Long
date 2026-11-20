@@ -159,6 +159,6 @@ Tái tạo mọi file `.txt`, `bench.json`, `soak.json`: `scripts/proof-phase4.s
 | Phụ đề + mũi tên mép màn hình: Bóng Mực mới, đèn < 30 dầu (gió, 10 s cuối: cùng cơ chế) | AC73 | [`02-caption-shade-edge-arrow.jpg`](phase-4/02-caption-shade-edge-arrow.jpg), [`03-caption-low-fuel-lantern.jpg`](phase-4/03-caption-low-fuel-lantern.jpg) | Đạt |
 | Chữ UI ≥ 18 px ở mọi màn, chữ lớn ×1.25; giảm chuyển động | AC74 | [`font-audit.txt`](phase-4/font-audit.txt), [`07-menu-large-text-x1.25.jpg`](phase-4/07-menu-large-text-x1.25.jpg); giảm chuyển động kiểm tay (không rung, không chớp, Mây bán trong suốt) | Đạt |
 | Test Phase 1–3 vẫn đạt; đầu ra headless không đổi | AC75 | `npm test`; [`headless-unchanged.txt`](phase-4/headless-unchanged.txt) (dòng `end` 3 Đêm giống Phase 3, chạy lại giống từng byte) | Đạt |
-| Release v1.0.0 chạy được | — | `npm run package` → zip 31 file; giải nén ở thư mục khác: `node run.js` phục vụ game, `--export-leaderboard` chạy, CLI headless thắng Đêm 1 seed 7 (`end` 14400 won 1137) | Đạt (chờ đăng Release) |
+| Release v1.0.0 chạy được | — | `npm run package` → zip 31 file; giải nén ở thư mục khác: `node run.js` phục vụ game, `--export-leaderboard` chạy, CLI headless thắng Đêm 1 seed 7 (`end` 14400 won 1137) | Đạt |
 
 Kết quả `npm test` tại commit cuối Phase 4: **175/175 đạt** (8 file). `bench.json` và `soak.json` ở gốc repo.

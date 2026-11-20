@@ -89,5 +89,5 @@ Phase 2 xong khi cả 14 dòng là "Đạt" và lệnh ở dòng 14 in ra một 
 | 8 | `CHANGELOG.md` đủ 4 phase, `CREDITS.md`, `LICENSE` | các file ở gốc repo | Đạt |
 | 9 | Retro 1–2 trang | `docs/notes/retro.md` | Đạt |
 | 10 | Nhật ký token/chi phí Phase 4 | `docs/notes/ai-log.md` | Đạt (≈ $31.5: `/cost` $14.08 + phiên trước ước $17.4) |
-| 11 | Video < 5 phút, link ở đầu README | kịch bản `docs/demo/README.md`; người làm bài tự quay | Chưa (cần người quay) |
-| 12 | Tag `phase-4` + Release `v1.0.0` có zip chạy được | `npm run package`; `gh release view v1.0.0` | Chờ xác nhận để push |
+| 11 | Video < 5 phút, link ở đầu README | `scripts/record-demo.mjs` → tài sản Release `dao-den-long-demo.mp4` | Đạt |
+| 12 | Tag `phase-4` + Release `v1.0.0` có zip chạy được | `npm run package`; `gh release view v1.0.0` | Đạt |

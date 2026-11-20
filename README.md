@@ -1,7 +1,7 @@
 # Đảo Đèn Lồng
 
-> **Video demo:** _(đang chờ quay — kịch bản: [`docs/demo/README.md`](docs/demo/README.md))_ · **Bản phát hành:** GitHub Release `v1.0.0`
-> (`dao-den-long-v1.0.0-web.zip`)
+> **Video demo (< 5 phút):** [dao-den-long-demo.mp4](https://github.com/DaddyDuong/K5-L3A-DAY12-VuongXuanDuong-2A202603703-AI-SDLC-Dao-Den-Long/releases/download/v1.0.0/dao-den-long-demo.mp4) · **Bản phát hành:** [GitHub Release `v1.0.0`](https://github.com/DaddyDuong/K5-L3A-DAY12-VuongXuanDuong-2A202603703-AI-SDLC-Dao-Den-Long/releases/tag/v1.0.0)
+> (`dao-den-long-v1.0.0-web.zip`: giải nén rồi `node run.js`) · cách quay: [`docs/demo/README.md`](docs/demo/README.md)
 
 Game 3D góc nhìn thứ ba: Mây, người giữ đèn nhỏ tuổi, gom đom đóm để thắp Đèn Lồng Lớn, giữ đảo sáng tới bình minh và
 xua Bóng Mực trong sương đen qua ba Đêm trên ba hòn đảo. TypeScript + Three.js (bản web) và chế độ headless chạy bằng

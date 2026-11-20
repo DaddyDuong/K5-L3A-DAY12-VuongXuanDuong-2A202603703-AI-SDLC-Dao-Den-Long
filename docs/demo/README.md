@@ -1,4 +1,14 @@
-# Video demo (CP5) — kịch bản < 5 phút
+# Video demo (CP5)
+
+**Video:** `dao-den-long-demo.mp4`, đính kèm GitHub Release `v1.0.0` (link ở đầu README). Không có tiếng.
+
+Cách quay: `npm run build && node scripts/record-demo.mjs` (cần Chrome/Chromium và `ffmpeg`). Script phục vụ game bằng
+`run_cmd`, điều khiển Chrome qua DevTools Protocol (bấm nút, gửi phím thật vào game), ghi mọi khung hình bằng
+`Page.startScreencast` rồi ghép bằng `ffmpeg` theo đúng mốc thời gian. Các cảnh terminal là **đầu ra thật** của lệnh,
+chạy trong lúc quay rồi phát lại nhanh (ghi rõ hệ số tua trên màn hình). Phần "chơi trực tiếp" là phím gửi bằng script;
+phần "Đêm trọn vẹn" là inputs của bot phát lại trong game 3D.
+
+## Kịch bản < 5 phút
 
 File nộp: `docs/demo/demo.mp4` hoặc đính kèm Release `v1.0.0`; link đặt ở **dòng đầu README**.
 Ticket-04 §7: "chơi trực tiếp một đoạn, cho thấy bằng chứng game chạy đúng (test, headless, bench)"; slide CP5 thêm:
@@ -15,5 +25,5 @@ lướt `CLAUDE.md`, git log và tag.
 | 4:00–4:20 | Soak + xuất bảng xếp hạng | `node --expose-gc dist-headless/headless/soak.js --seed 7 --nights 10 --out demo-soak.json`; `node dist-headless/app/run.js --export-leaderboard out.json` |
 | 4:20–4:50 | Harness: `CLAUDE.md`, hook Stop, skill, `git log --oneline`, `git tag` | editor + terminal |
 
-Ghi hình trên Linux: OBS Studio, hoặc `wf-recorder -f docs/demo/demo.mp4` (Wayland) / `ffmpeg -f x11grab` (X11).
+Quay tay (nếu muốn thêm lời thuyết minh): OBS Studio, hoặc `wf-recorder -f docs/demo/demo.mp4` (Wayland) / `ffmpeg -f x11grab` (X11).
 Giữ file < 100 MB (GitHub chặn file lớn hơn trong repo); nếu lớn hơn, đính kèm vào Release thay vì commit.

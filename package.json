@@ -19,6 +19,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "npm run build:headless && vitest run",
     "package": "node scripts/package-release.mjs 1.0.0",
+    "demo": "node scripts/record-demo.mjs",
     "autoplay": "npm run build:headless && node dist-headless/tools/autoplay-cli.js"
   },
   "dependencies": {
