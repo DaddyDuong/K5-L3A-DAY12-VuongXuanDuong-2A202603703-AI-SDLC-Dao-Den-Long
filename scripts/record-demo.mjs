@@ -259,7 +259,7 @@ async function main() {
     const [k, vk] = KEYS[code];
     await cdp.send("Input.dispatchKeyEvent", {
       type, code, key: k, windowsVirtualKeyCode: vk, nativeVirtualKeyCode: vk,
-      ...(type === "keyDown" && k.length === 1 ? { text: k } : {}),
+      ...(type === "keyDown" && (k.length === 1 || k === "Enter") ? { text: k === "Enter" ? "\r" : k } : {}),
     });
   };
   const tap = async (code, holdMs = 90) => {
@@ -337,9 +337,12 @@ async function main() {
     }
     await sleep(600);
     await tap("Enter");
+    if (!(await poll("/Đã lưu/.test(document.body.innerText)", 2500))) await click('#save-form button[type="submit"], #save-form button');
+    if (!(await poll("/Đã lưu/.test(document.body.innerText)", 3000))) throw new Error("name was not saved");
     await sleep(2200);
-    await click("#save-form button");
-    await sleep(4200);
+    await click('#save-form button[data-act="board"]');
+    await poll("/Lưu trên đĩa/.test(document.body.innerText)", 4000);
+    await sleep(4500);
   }
 
   // 2. settings: key remapping with a conflict, large text
