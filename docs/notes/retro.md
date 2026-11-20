@@ -10,9 +10,9 @@ headless đỏ → code → xanh → bằng chứng. Chi tiết từng lần AI 
 | 1 | PRD-0, Contract v1.0 | Đêm 1 chơi được, headless tất định, AC1–AC21 đạt | 61 | $7.40 |
 | 2 | Ticket-02 "Ba hòn đảo", v1.1 | 3 Đêm, số chuẩn, thứ tự 12 bước, lướt/rơi/gió; 23 test Phase 1 sửa kèm lý do | > 110 | $22.45 |
 | 3 | Ticket-03 "Đèn cạn dầu", v1.2 | Dầu, drain, thắp lại, thắng bình minh; bot thắng 48/48 · 48/48 · 45/48 seed | 154 | $17.09 |
-| 4 | Ticket-04 "Bình minh", v1.3 | Bench 166 FPS (đạt), soak 0 crash nhưng RSS ×1.37 (chưa đạt ≤ 1.2), bảng xếp hạng, trợ năng, Release | 175 | ≈ $23 |
+| 4 | Ticket-04 "Bình minh", v1.3 | Bench 166 FPS (đạt), soak 0 crash nhưng RSS ×1.37 (chưa đạt ≤ 1.2), bảng xếp hạng, trợ năng, Release | 175 | ≈ $31.5 |
 
-Tổng ≈ $70. Đầu ra headless của Phase 3 giữ nguyên từng byte qua Phase 4.
+Tổng ≈ $78.4. Đầu ra headless của Phase 3 giữ nguyên từng byte qua Phase 4.
 
 ## Điều hiệu quả khi làm với AI
 

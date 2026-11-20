@@ -117,19 +117,25 @@ Nhận xét (không phụ thuộc số liệu):
 
 ## Token và chi phí — Phase 4
 
-Phase 4 chạy trong 2 file transcript (một lần tự nén ngữ cảnh giữa chừng), không dùng subagent ngoài 1 lần đọc web.
-Số dưới đây **cộng từ `usage` trong transcript** (chưa có `/cost`; cập nhật khi chạy `/cost` cuối phiên):
+Phase 4 chạy qua 2 phiên Claude Code (ngữ cảnh được nén và tiếp tục ở phiên mới giữa chừng), nên `/cost` cuối phiên
+chỉ tính phần sau. Phần trước ước từ `usage` trong transcript, theo công thức đã khớp `/cost` của Phase 2 và Phase 3
+(lệch < 1%: output $25/M, cache read $0.25/M, cache write $3.125/M).
 
-| Phần | Request | Output | Cache read | Cache write |
-|---|---:|---:|---:|---:|
-| Trước khi nén (đọc ticket → sim, bench, soak, server, web) | 185 | 225.8k | 39.7M | 590.0k |
-| Sau khi nén (kiểm web, đo, đóng gói, tài liệu) | 121+ | 166.9k+ | 27.1M+ | 481.3k+ |
-| **Tổng (tới lúc ghi)** | **306+** | **392.7k** | **66.8M** | **1.07M** |
+| Phần | Nguồn | Output | Cache read | Cache write | Chi phí |
+|---|---|---:|---:|---:|---:|
+| Phiên 1: đọc ticket/slide → ADR, sim, bench, soak, server, web | transcript (185 request) | 225.8k | 39.7M | 590.0k | ≈ $17.4 |
+| Phiên 2: kiểm web, đo bench/soak, đóng gói, tài liệu | `/cost` (139 request, Opus) | 194.4k | 30.4M | 511.5k | $14.08 |
+| claude-haiku-5-5 (việc phụ, phiên 2) | `/cost` | 1.3k | 4.5k | 5.7k | $0.0015 |
+| **Tổng Phase 4** | | **420.2k** | **70.1M** | **1.10M** | **≈ $31.5** |
 
-- Ước chi phí: cùng cách tính đã lệch ~6% ở Phase 3, lấy tỷ lệ theo Phase 3 (transcript ↔ `/cost` $17.09) →
-  **≈ $23**. Lũy kế 4 phase ≈ **$70**.
-- Lớn nhất vẫn là **cache read** (đọc lại ngữ cảnh): Phase 4 chạm nhiều mảng (sim, Node, web, CSS, tài liệu) nên ngữ
-  cảnh dài; chụp ảnh trình duyệt để kiểm UI cũng tốn.
+- Phiên 2: thời gian API 30 phút 55 giây / thời gian thực 58 phút 59 giây; 98% input lấy từ prompt cache (1 lần miss
+  phía server, 30.9k token cache lại; 1 lần dựng lại do nén ngữ cảnh). `/cost` báo 1743 dòng thêm / 80 dòng xóa.
+- So với Phase 3 ($17.09): **~1.8 lần**. Lũy kế 4 phase: 7.40 + 22.45 + 17.09 + 31.5 ≈ **$78.4**.
+- Khoản lớn nhất vẫn là **cache read** (đọc lại ngữ cảnh, ~70M token ≈ $17.5): Phase 4 chạm nhiều mảng (sim, Node,
+  web, CSS, đóng gói, tài liệu) trong một mạch dài; output (~$10.5) đứng thứ hai.
 
 Cách đã tiết kiệm ở Phase 4: không thêm dependency (không chờ cài/tải); gom thao tác trình duyệt vào `browser_batch`;
 kiểm cỡ chữ và luồng lưu điểm bằng script DOM thay vì nhiều ảnh; tái dùng inputs replay Phase 3 để bắt cảnh đèn < 30.
+
+Chưa tốt: lần đầu ước chi phí Phase 4 là ≈ $23 do lấy tỷ lệ từ một transcript không chỉ chứa Phase 3; khi có `/cost`
+mới thấy công thức theo giá từng loại token chính xác hơn. Một phase dài nên tách phiên theo lát việc sớm hơn.
