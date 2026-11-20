@@ -14,7 +14,7 @@ import { NightView } from "./world3d.js";
 
 // ---------- URL options ----------
 // Replay: ?seed=N&night=K&replay=<inputs.json>[&speed=S] plays a contract inputs file through the same step().
-// Whole run: ?seed=7,11,1&replay=replays/n{night}-seed{seed}-win.inputs.json (one seed per night).
+// Whole run: ?seed=7&replay=replays/n{night}-seed7-win.inputs.json; ?seed=7,11,1 + "{seed}" in the URL = one seed per night.
 // A "{night}" in the replay URL (e.g. replays/n{night}-seed7-win.inputs.json) replays the whole 3-night run.
 // ?night=K jumps straight to that night's intro; ?fps=1 shows the average FPS (evidence for the 30 FPS target).
 const params = new URLSearchParams(location.search);
@@ -300,7 +300,7 @@ function closeSettings() {
 // ---------- night lifecycle ----------
 function loadNight(n: NightId) {
   night = n;
-  // `?seed=7` for every night, or `?seed=7,11,1` = one seed per night (replays of the bot's known wins).
+  // `?seed=7` for every night, or `?seed=7,11,1` = one seed per night.
   const seeds = seedParam?.split(",").map(Number);
   seed = seeds ? (seeds[n - 1] ?? seeds[0]!) : (Date.now() ^ (Math.random() * 0x7fffffff)) >>> 0;
   world = createWorld(seed, n);

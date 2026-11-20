@@ -7,7 +7,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 OUT="${1:-docs/proof/phase-3/headless}"
-SEEDS=(0 7 11 1) # index = night
+SEEDS=(0 7 7 7) # index = night (replay seed per night)
 CLI="node dist-headless/headless/cli.js"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
