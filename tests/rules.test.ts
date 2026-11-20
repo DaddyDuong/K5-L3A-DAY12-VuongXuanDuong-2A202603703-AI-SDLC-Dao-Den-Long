@@ -211,3 +211,53 @@ describe("R7/R11 hits and losing", () => {
     expect(events(r, "player_hit")).toHaveLength(1);
   });
 });
+
+describe("R8/R9 pulse and stun", () => {
+  it("AC11: pulse costs pulse_cost, stuns and pushes shades in radius, +per_stun", () => {
+    const r = run(1, scn({ player: { carried: 2 }, shades: [{ id: "S1", pos: [5, 1, 0] }, { id: "S2", pos: [6.1, 1, 0] }] }), press("pulse"));
+    expect(events(r, "pulse")).toEqual([{ type: "event", tick: 1, name: "pulse", data: { stunned_ids: ["S1"] } }]);
+    const s = snap(r, 1);
+    expect(s.player.carried).toBe(1);
+    expect(s.score).toBe(25);
+    expect(s.shades[0]).toEqual({ id: "S1", pos: [9, 1, 0], state: "stunned" });
+    expect(s.shades[1].state).toBe("chase");
+  });
+
+  it("pulse radius is inclusive and an empty pulse still fires", () => {
+    expect(events(run(1, scn({ player: { carried: 1 }, shades: [{ id: "S1", pos: [6, 1, 0] }] }), press("pulse")), "pulse")[0]!.data)
+      .toEqual({ stunned_ids: ["S1"] });
+    const empty = run(1, scn({ player: { carried: 1 } }), press("pulse"));
+    expect(events(empty, "pulse")[0]!.data).toEqual({ stunned_ids: [] });
+    expect(snap(empty, 1).player.carried).toBe(0);
+  });
+
+  it("AC12: pulse_cooldown_s (60 ticks) between pulses", () => {
+    const r = run(70, scn({ player: { carried: 5 } }), {
+      frames: [{ tick: 0, pulse: true }, { tick: 1, pulse: false }, { tick: 30, pulse: true }, { tick: 31, pulse: false }, { tick: 60, pulse: true }],
+    });
+    expect(events(r, "pulse").map((e) => e.tick)).toEqual([1, 61]);
+  });
+
+  it("AC13: no motes carried -> no pulse", () => {
+    expect(events(run(1, scn({ player: { carried: 0 }, shades: [{ id: "S1", pos: [2, 1, 0] }] }), press("pulse")), "pulse")).toHaveLength(0);
+  });
+
+  it("AC14: stunned shades neither move nor hurt for pulse_stun_s, then chase again", () => {
+    const r = run(181, scn({ player: { carried: 2 }, shades: [{ id: "S1", pos: [3, 1, 0] }] }), {
+      frames: [{ tick: 0, pulse: true, move: [1, 0] }, { tick: 60, move: [0, 0] }],
+    }, 1);
+    // Player walks up to the frozen shade (distance ~1 = shade_hit_radius) but is not hit while it is stunned.
+    expect(snap(r, 60).shades[0]).toEqual({ id: "S1", pos: [7, 1, 0], state: "stunned" });
+    expect(snap(r, 180).shades[0]).toEqual({ id: "S1", pos: [7, 1, 0], state: "stunned" });
+    expect(snap(r, 181).shades[0].state).toBe("chase");
+    expect(events(r, "player_hit").map((e) => e.tick)).toEqual([181]);
+  });
+
+  it("re-stunning an already stunned shade gives no extra score", () => {
+    const r = run(62, scn({ player: { carried: 5 }, shades: [{ id: "S1", pos: [2, 1, 0] }] }), {
+      frames: [{ tick: 0, pulse: true }, { tick: 1, pulse: false }, { tick: 60, pulse: true }],
+    });
+    expect(events(r, "pulse").map((e) => e.data.stunned_ids)).toEqual([["S1"], ["S1"]]);
+    expect(snap(r, 62).score).toBe(25);
+  });
+});

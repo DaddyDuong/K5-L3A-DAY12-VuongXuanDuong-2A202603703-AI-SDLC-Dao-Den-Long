@@ -40,7 +40,7 @@ export function step(w: World, input: InputState): SimEvent[] {
   pickupMotes(w, events);
   if (pressed("interact")) deposit(w, events);
 
-  // TODO(phase-1 rules): pulse.
+  if (pressed("pulse")) pulse(w, t, events);
   moveShades(w, t);
   checkHits(w, t, events);
   spawnShades(w, t, events);
@@ -185,4 +185,28 @@ function checkHits(w: World, t: number, events: SimEvent[]): void {
   }
   w.invulnUntil = t + Math.round(TUNING.invuln_s * WORLD.tick_rate);
   events.push({ name: "player_hit", data: { by: "shade", flames: p.flames, dropped } });
+}
+
+/** R8/R9: spend pulse_cost motes to stun + push every shade within pulse_radius. */
+function pulse(w: World, t: number, events: SimEvent[]): void {
+  const p = w.player;
+  if (p.carried < TUNING.pulse_cost || t < w.pulseReadyAt) return;
+  p.carried -= TUNING.pulse_cost;
+  w.pulseReadyAt = t + Math.round(TUNING.pulse_cooldown_s * WORLD.tick_rate);
+  const stunned: string[] = [];
+  for (const s of w.shades) {
+    const dx = s.pos[0] - p.pos[0];
+    const dz = s.pos[2] - p.pos[2];
+    const d = Math.hypot(dx, dz);
+    if (d > TUNING.pulse_radius) continue;
+    if (s.state !== "stunned") w.score += TUNING.score.per_stun;
+    s.state = "stunned";
+    s.stunUntil = t + Math.round(TUNING.pulse_stun_s * WORLD.tick_rate);
+    const [ux, uz] = d > 0 ? [dx / d, dz / d] : [1, 0];
+    s.pos[0] += ux * TUNING.pulse_push_m;
+    s.pos[2] += uz * TUNING.pulse_push_m;
+    constrainShade(w, s.pos);
+    stunned.push(s.id);
+  }
+  events.push({ name: "pulse", data: { stunned_ids: stunned } });
 }
