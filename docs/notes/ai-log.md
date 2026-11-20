@@ -87,17 +87,20 @@ Chưa tốt:
 
 ## Token và chi phí — Phase 3
 
-Nguồn: cộng trường `usage` của mọi phản hồi trong transcript phiên Phase 3
-(`~/.claude/projects/<dự án>/cb8a0e88-….jsonl`, 18:18–20:45 ngày 20/11, mỗi message id tính một lần), tính tới lúc ghi
-dòng này. Phiên mới cho Phase 3 như đã định; có một lần chạm giới hạn sử dụng và một lần tự nén ngữ cảnh.
+Nguồn: `/cost` của Claude Code ở cuối Phase 3 (phiên mới cho Phase 3 như đã định; có một lần chạm giới hạn sử dụng và
+một lần tự nén ngữ cảnh; `/cost` không tách theo từng việc nên các dòng ở bảng trên được gộp).
 
-| Model | Request | Input | Output | Cache read | Cache write | Chi phí |
-|---|---:|---:|---:|---:|---:|---:|
-| claude-opus-5-5 (agent chính, không dùng subagent) | 168 | 0.4k | 214.2k | 35.4M | 578.5k | ≈ $16 (ước) |
+| Model | Input | Output | Cache read | Cache write | Chi phí |
+|---|---:|---:|---:|---:|---:|
+| claude-opus-5-5 (agent chính, không dùng subagent) | 6.3k | 230.4k | 38.6M | 592.1k | $17.09 |
+| claude-haiku-5-5 (việc phụ) | 1.2k | 22 | 0 | 0 | ~$0.0001 |
+| **Tổng** | | | | | **≈ $17.09** |
 
-- Chi phí là **ước lượng**: transcript không ghi giá, nên lấy theo tỉ lệ token so với Phase 2 ($22.45 cho 346k output /
-  45.6M cache read / 796k cache write → Phase 3 bằng ~0.6–0.8 lần mỗi loại). Số chính xác: `/cost` cuối phiên.
-- Lũy kế Phase 1 + 2 + 3: **≈ $46** (ước).
+- Thời gian API 37 phút 19 giây / thời gian thực 2 giờ 35 phút 56 giây; 176 request, 98% input lấy từ prompt cache
+  (1 lần miss phía server, 34.9k token cache lại; 1 lần dựng lại do nén ngữ cảnh). `/cost` báo 548 dòng thêm / 18 dòng
+  xóa (thấp hơn thực tế vì phần lớn file ghi qua shell).
+- Trước khi có `/cost`, AI ước ≈ $16 bằng cách cộng `usage` trong transcript rồi lấy tỉ lệ với Phase 2: lệch ~6%.
+- So với Phase 2 ($22.45): **~0.76 lần**. Lũy kế Phase 1 + 2 + 3: **≈ $46.94**.
 
 Nhận xét (không phụ thuộc số liệu):
 - Khoản tốn nhất là **thử nghiệm bot**: mỗi lượt đánh giá 15 ván ~1–2 phút, một lần quét 18 tổ hợp thông số phải dừng giữa chừng.
