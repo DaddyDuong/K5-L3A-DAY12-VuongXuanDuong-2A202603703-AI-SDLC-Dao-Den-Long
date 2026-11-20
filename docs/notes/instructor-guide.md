@@ -18,7 +18,7 @@ ticket là yêu cầu, slide là cách chấm; lời Coach tại lớp là quy�
 
 | Mục | Điểm | Repo này đáp ứng bằng |
 |---|---:|---|
-| A Test ẩn headless | 30 | `src/headless/cli.ts` theo Contract v1.1; `npm test` |
+| A Test ẩn headless | 30 | `src/headless/cli.ts` theo Contract v1.3 (v1.0–v1.2 giữ tương thích); `npm test` |
 | B Bằng chứng | 20 | `docs/proof/README.md` (bảng truy vết), `docs/proof/phase-2/`, `scripts/proof-headless.sh` |
 | C SDLC & Harness | 15 | commit nhỏ; `CLAUDE.md` (< 50 dòng, sửa qua các phase); skill `play-and-capture`; hook Stop chặn khi test đỏ; CI |
 | D Retro & token | 10 | `docs/notes/ai-log.md` (token/chi phí mỗi phase), `docs/notes/retro.md` (CP5) |
@@ -73,7 +73,7 @@ Phase 2 xong khi cả 14 dòng là "Đạt" và lệnh ở dòng 14 in ra một 
 | 4 | Changelog các thay đổi phá vỡ tương thích | `CHANGELOG.md` | Đạt |
 | 5 | Test Phase 1–2 không bị thay vẫn đạt | `npm test` (154/154) | Đạt |
 | 6 | Mỗi Đêm thắng được | `autoplay.test.ts` (seed 1, 7 × 3 Đêm); quét seed 1–48: 48/48 · 48/48 · 45/48 (§6 assumptions) | Đạt |
-| 7 | Tag `phase-3` trên GitHub | `git ls-remote --tags origin phase-3` | Xem lịch sử git |
+| 7 | Tag `phase-3` trên GitHub | `git ls-remote --tags origin phase-3` | Đạt (`a060642`) |
 
 ## Checklist "Phase 4 đã xong" (DoD của Ticket-04 + slide CP4/CP5)
 
