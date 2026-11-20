@@ -8,6 +8,7 @@ Công cụ: Claude Code (Opus 5.5). Harness: `CLAUDE.md`, hook Stop `.claude/hoo
 | 1 | Khung dự án: sim + headless CLI + test + web + harness | "hoàn thiện nó cho tôi" (bước 1 của kế hoạch) | — | _(điền)_ |
 | 1 | Chốt giả định + 21 tiêu chí nghiệm thu (không code) | "hoàn thiện cho tôi" (chấp nhận toàn bộ đề xuất bước 2) | — | _(điền)_ |
 | 1 | Bước 3: code luật theo 6 lát, mỗi lát test AC trước (thấy đỏ) → code → xanh → commit | "hoàn thiện cho tôi" | Test AC20 ban đầu kỳ vọng có `player_hit` khi đi lang thang, nhưng người chơi (6 m/s) nhanh hơn Bóng Mực (3.5 m/s) nên không bao giờ bị chạm. Phát hiện nhờ test đỏ + in số event/vị trí từ JSONL. Sửa **kịch bản test** (đứng yên 20 s cuối), không sửa luật | _(điền)_ |
+| 1 | Sửa tạo hình Mây và cột đèn (chỉ `src/web`) | Người dùng hỏi "tạo hình nhân vật như này liệu có phù hợp?" kèm ảnh chụp | Bản đầu AI dựng đúng "chữ" của PRD (nón + quả cầu) nhưng không kiểm tra **nhìn thực tế**: đèn treo nằm phía trước nên camera sau lưng không thấy, nón tối, cột đèn chưa thắp gần như vô hình. Người dùng phát hiện qua ảnh; AI sửa rồi kiểm tra lại bằng ảnh chụp/zoom từ Chrome | _(điền)_ |
 
 ## Đánh giá nhanh Phase 1
 

@@ -21,6 +21,7 @@ Chạy lại toàn bộ: `npm ci && npm test` ở tag tương ứng. Mỗi AC (�
 | Thua `dawn` khi hết giờ | AC19 | `headless.test.ts` › tick model | Đạt |
 | Tất định byte-identical trên một đêm đầy đủ luật | AC20 | `rules.test.ts` › AC20 | Đạt |
 | Bản 3D chơi được: HUD, thua, chơi lại (R) | AC21 | Kiểm tra tay trên Chrome: đứng yên ~14 s → bị bắt 3 lần → màn "Mây đã hết lửa", R chơi lại; không lỗi console | Đạt một phần |
+| Phong cách PRD-0: Mây đội nón lá treo đèn lồng nhỏ; ấm = an toàn, tím = nguy hiểm; đèn tìm thấy được từ xa | AC21 | Trước: [`phase-1/visual-before.jpg`](phase-1/visual-before.jpg) (nhân vật trông như cây nấm, cột đèn chưa thắp gần như vô hình). Sau: [`phase-1/visual-after.jpg`](phase-1/visual-after.jpg), [`phase-1/visual-after-character.png`](phase-1/visual-after-character.png) | Đạt |
 | Bản 3D: nhặt → nạp → thắp đèn → thắng | AC21 | Logic đã có test headless; **chưa có ảnh/clip chơi tay đến khi thắng** | Chưa có bằng chứng hình ảnh |
 
 Kết quả `npm test` tại commit cuối Phase 1: **58/58 đạt** (3 file test + contract).

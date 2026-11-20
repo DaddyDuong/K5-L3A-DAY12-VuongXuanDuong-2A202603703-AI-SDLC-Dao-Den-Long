@@ -39,21 +39,36 @@ const island = new THREE.Mesh(
 island.position.y = -1.5;
 scene.add(island);
 
-// Player: body + conical hat (nón lá) + small lantern.
+// Player "Mây": warm tunic, head, wide straw conical hat (nón lá), paper lantern hanging from the brim.
+// Materials get a little self-glow so the silhouette reads in the dark night.
+const glowMat = (color: number, emissive: number, emissiveIntensity: number) =>
+  new THREE.MeshStandardMaterial({ color, emissive, emissiveIntensity });
 const player = new THREE.Group();
-const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.35, 0.8, 4, 12), new THREE.MeshStandardMaterial({ color: 0x5b8fd6 }));
-body.position.y = 0.75;
-const hat = new THREE.Mesh(new THREE.ConeGeometry(0.7, 0.4, 24), new THREE.MeshStandardMaterial({ color: 0xe8d29a }));
-hat.position.y = 1.65;
-const handLamp = new THREE.Mesh(
-  new THREE.SphereGeometry(0.12, 12, 8),
-  new THREE.MeshStandardMaterial({ color: COLORS.warm, emissive: COLORS.warm, emissiveIntensity: 2 }),
-);
-handLamp.position.set(0.5, 1.5, 0);
-const playerLight = new THREE.PointLight(COLORS.warm, 8, 10);
-playerLight.position.set(0, 1.6, 0);
-player.add(body, hat, handLamp, playerLight);
+const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.3, 0.55, 4, 12), glowMat(0xb5523b, 0x5a1e14, 0.5));
+body.position.y = 0.6;
+const head = new THREE.Mesh(new THREE.SphereGeometry(0.26, 16, 12), glowMat(0xf2c9a0, 0x6b4a30, 0.45));
+head.position.y = 1.28;
+const hat = new THREE.Mesh(new THREE.ConeGeometry(0.85, 0.42, 32), glowMat(0xf0dc9c, 0x8a7238, 0.7));
+hat.position.y = 1.62;
+// Lantern pivot hangs under the right edge of the brim (local -X is screen-right from the
+// chase camera) so it stays visible, and swings while walking.
+const lanternPivot = new THREE.Group();
+lanternPivot.position.set(-0.68, 1.5, -0.05);
+const cord = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.3, 6), new THREE.MeshBasicMaterial({ color: 0x3a2a1a }));
+cord.position.y = -0.15;
+const paperLantern = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.22, 12), glowMat(0xff6a30, 0xff5a20, 2.2));
+paperLantern.position.y = -0.41;
+const capMat = new THREE.MeshStandardMaterial({ color: 0xd4a640 });
+const capTop = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.03, 10), capMat);
+capTop.position.y = -0.29;
+const capBottom = capTop.clone();
+capBottom.position.y = -0.53;
+const playerLight = new THREE.PointLight(COLORS.warm, 10, 11);
+playerLight.position.y = -0.41;
+lanternPivot.add(cord, paperLantern, capTop, capBottom, playerLight);
+player.add(body, head, hat, lanternPivot);
 scene.add(player);
+let lastPlayerPos = new THREE.Vector3();
 
 const moteGeo = new THREE.SphereGeometry(0.15, 10, 8);
 const moteMat = new THREE.MeshStandardMaterial({ color: 0xfff2a0, emissive: 0xffe066, emissiveIntensity: 3 });
@@ -61,7 +76,7 @@ const shadeGeo = new THREE.SphereGeometry(0.7, 16, 12);
 const shadeMat = new THREE.MeshStandardMaterial({ color: 0x1a0624, emissive: 0x5a1a80, emissiveIntensity: 0.6 });
 const shadeStunMat = new THREE.MeshStandardMaterial({ color: 0x6a5a80, transparent: true, opacity: 0.5 });
 
-interface LanternView { lamp: THREE.Mesh; light: THREE.PointLight; group: THREE.Group }
+interface LanternView { lamp: THREE.Mesh; light: THREE.PointLight; group: THREE.Group; safeRing: THREE.Mesh }
 let lanternViews = new Map<string, LanternView>();
 const moteViews = new Map<string, THREE.Mesh>();
 const shadeViews = new Map<string, THREE.Mesh>();
@@ -71,16 +86,33 @@ function buildLanterns(w: World) {
   lanternViews = new Map();
   for (const l of w.lanterns) {
     const group = new THREE.Group();
-    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.15, 3, 8), new THREE.MeshStandardMaterial({ color: 0x4a3020 }));
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.15, 3, 8), glowMat(0x9a6a44, 0x3a2414, 0.6));
     pole.position.y = 1.5;
-    const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.6, 16, 12), new THREE.MeshStandardMaterial({ color: 0x553322 }));
-    lamp.position.y = 3.4;
+    // Big paper lantern: dimly glowing when unlit so it can be found from afar, bright when lit.
+    const lamp = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 0.9, 16), glowMat(0xc8603a, 0xff8a40, 0.3));
+    lamp.position.y = 3.5;
+    const roof = new THREE.Mesh(new THREE.ConeGeometry(0.75, 0.35, 16), glowMat(0x5a3020, 0x2a1408, 0.6));
+    roof.position.y = 4.12;
     const light = new THREE.PointLight(COLORS.warm, 0, 18);
-    light.position.y = 3.4;
-    group.add(pole, lamp, light);
+    light.position.y = 3.5;
+    // Base marker (always) + safe-zone ring (only when lit: unlit lanterns do not protect, R6).
+    const marker = new THREE.Mesh(
+      new THREE.RingGeometry(1.0, 1.25, 40),
+      new THREE.MeshBasicMaterial({ color: 0xffb070, transparent: true, opacity: 0.35, side: THREE.DoubleSide }),
+    );
+    marker.rotation.x = -Math.PI / 2;
+    marker.position.y = 0.03;
+    const safeRing = new THREE.Mesh(
+      new THREE.RingGeometry(TUNING.safe_radius - 0.12, TUNING.safe_radius, 64),
+      new THREE.MeshBasicMaterial({ color: COLORS.warm, transparent: true, opacity: 0.45, side: THREE.DoubleSide }),
+    );
+    safeRing.rotation.x = -Math.PI / 2;
+    safeRing.position.y = 0.04;
+    safeRing.visible = false;
+    group.add(pole, lamp, roof, light, marker, safeRing);
     group.position.set(...l.pos);
     scene.add(group);
-    lanternViews.set(l.id, { lamp, light, group });
+    lanternViews.set(l.id, { lamp, light, group, safeRing });
   }
 }
 
@@ -166,9 +198,15 @@ function render(t: number) {
   player.visible = w.steps >= w.invulnUntil || Math.floor(t * 10) % 2 === 0;
   const yaw = (camYawDeg * Math.PI) / 180;
   player.rotation.y = yaw;
+  // Lantern sways: gentle idle bob, stronger swing while moving.
+  const moved = lastPlayerPos.distanceTo(player.position);
+  lastPlayerPos = player.position.clone();
+  const swing = Math.min(1, moved / 0.1);
+  lanternPivot.rotation.x = (0.05 + 0.3 * swing) * Math.sin(t * 7);
+  lanternPivot.rotation.z = 0.04 * Math.sin(t * 2.3);
   const back = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw)).multiplyScalar(-8);
-  camera.position.set(w.player.pos[0] + back.x, w.player.pos[1] + 5, w.player.pos[2] + back.z);
-  camera.lookAt(w.player.pos[0], w.player.pos[1] + 1.2, w.player.pos[2]);
+  camera.position.set(w.player.pos[0] + back.x, w.player.pos[1] + 3.2, w.player.pos[2] + back.z);
+  camera.lookAt(w.player.pos[0], w.player.pos[1] + 1.4, w.player.pos[2]);
 
   let lit = 0;
   for (const l of w.lanterns) {
@@ -178,8 +216,9 @@ function render(t: number) {
     // Glow grows with the deposited amount; full light once lit.
     const fill = Math.min(1, l.deposited / TUNING.lantern_cost);
     mat.emissive.setHex(COLORS.warm);
-    mat.emissiveIntensity = l.lit ? 2.5 : 0.4 * fill;
+    mat.emissiveIntensity = l.lit ? 2.5 : 0.3 + 0.7 * fill;
     v.light.intensity = l.lit ? 40 : 4 * fill;
+    v.safeRing.visible = l.lit;
   }
   // The island brightens as lanterns are lit.
   const k = lit / w.lanterns.length;
