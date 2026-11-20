@@ -37,17 +37,57 @@ export function step(w: World, input: InputState): SimEvent[] {
   }
 
   pickupMotes(w, events);
+  if (pressed("interact")) deposit(w, events);
 
-  // TODO(phase-1 rules): deposit/lantern_lit, shades chase/hit, pulse, win check.
+  // TODO(phase-1 rules): pulse, shades chase/hit/spawn.
 
   w.steps++;
   w.prevInput = { ...input, move: [...input.move] };
+  checkGameOver(w, events);
+  return events;
+}
 
-  if (timeLeftS(w) <= 0) {
+/** R10/R11/R12: win is checked first, then no_flames, then dawn. */
+function checkGameOver(w: World, events: SimEvent[]): void {
+  if (w.lanterns.every((l) => l.lit)) {
+    w.state = "won";
+    w.score +=
+      TUNING.score.per_second_left * Math.floor(timeLeftS(w)) + TUNING.score.per_flame_left * w.player.flames;
+    events.push({ name: "game_over", data: { result: "won", reason: "all_lit" } });
+  } else if (w.player.flames <= 0) {
+    w.state = "lost";
+    events.push({ name: "game_over", data: { result: "lost", reason: "no_flames" } });
+  } else if (timeLeftS(w) <= 0) {
     w.state = "lost";
     events.push({ name: "game_over", data: { result: "lost", reason: "dawn" } });
   }
-  return events;
+}
+
+/** R2/R3: deposit into the nearest unlit lantern in interact_radius (ties -> lower id). */
+function deposit(w: World, events: SimEvent[]): void {
+  const p = w.player;
+  if (p.carried <= 0) return;
+  let target: World["lanterns"][number] | undefined;
+  let best = Infinity;
+  for (const l of w.lanterns) {
+    const d = distXZ(p.pos, l.pos);
+    if (!l.lit && d <= TUNING.interact_radius && d < best) {
+      best = d;
+      target = l;
+    }
+  }
+  if (!target) return;
+  const amount = Math.min(p.carried, Math.max(0, TUNING.lantern_cost - target.deposited));
+  if (amount > 0) {
+    p.carried -= amount;
+    target.deposited += amount;
+    events.push({ name: "deposit", data: { lantern_id: target.id, amount, deposited: target.deposited } });
+  }
+  if (target.deposited >= TUNING.lantern_cost) {
+    target.lit = true;
+    w.score += TUNING.score.per_lantern;
+    events.push({ name: "lantern_lit", data: { lantern_id: target.id } });
+  }
 }
 
 /** XZ-plane distance (contract §B). */
