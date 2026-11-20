@@ -26,4 +26,8 @@ description: Play each night (1–3) automatically with the bot, cross-check eve
 6. FPS: run `__bench(180)` in the console late in night 3 (most shades + lights); it renders at 1280×720 and waits for
    the GPU each frame. Record ms/frame and the GPU; ask the user to confirm the live `?fps=1` average in a visible window.
 
+7. Headless evidence files (replay end lines, run-twice determinism, 21 600-tick timing, a sample JSONL):
+   `scripts/proof-headless.sh docs/proof/phase-N/headless` — rerun after the final commit of the phase so `env.txt`
+   names the tagged commit, and link the files from `docs/proof/README.md`.
+
 `tests/autoplay.test.ts` already runs steps 1–2 for every night on each `npm test`.

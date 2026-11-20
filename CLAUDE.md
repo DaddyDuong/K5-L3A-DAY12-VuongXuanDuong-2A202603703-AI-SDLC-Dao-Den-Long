@@ -22,7 +22,9 @@
 - `src/tools/autoplay.ts` bot (grid Dijkstra + pad flights) used for winnability tests and replays in `public/replays/`.
 - `tests/` vitest; `tests/helpers.ts` (`runCli`, `run`, `scn`, `events`, `snap`) runs the built CLI end-to-end.
   `phase2.test.ts` = AC23–AC43, `rules.test.ts` / `headless.test.ts` = Phase 1 regression on the standard numbers.
-- `docs/notes/` assumptions per phase (+ AC tables), AI log, retro. `docs/proof/` evidence. `docs/lab/` handout (read-only).
+- `docs/notes/` assumptions per phase (+ AC tables), AI log, retro, `instructor-guide.md` (grading rules + phase DoD
+  checklist from the instructor slides). `docs/proof/` evidence; `scripts/proof-headless.sh` regenerates the headless
+  evidence files. `docs/lab/` handout (read-only).
 
 ## Rules
 - `src/sim` must not import `three`, DOM APIs, `Math.random` or `Date`. Randomness only via `Rng` seeded from `--seed`.
@@ -37,3 +39,6 @@
 - Do not invent requirements: quote the ticket text in `docs/notes/phase-N-assumptions.md` when deciding ambiguities.
 - After changing rules: re-run the bot (`npm run autoplay`) for each night; a night the bot can no longer win means
   winnability broke — investigate before touching the bot. Regenerate `public/replays/` so web replays still match.
+- Before writing expected values, trace them through the 12-step order (e.g. shades move before contacts; a dash
+  replaces horizontal velocity). A new test that fails: decide from the ticket whether the test or the sim is wrong.
+- Timing/benchmark claims must check the run reached the stated ticks (`end.ticks`); a lost night ends early.
