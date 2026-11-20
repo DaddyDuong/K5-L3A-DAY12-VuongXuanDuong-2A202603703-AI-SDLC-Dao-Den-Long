@@ -1,14 +1,16 @@
 // Bot that plays a night through the real sim and records contract-format inputs.
+// Ticket-03: the goal is to survive until dawn with ≥ ceil(0.6 × lanterns) lit, so the bot lights lanterns,
+// keeps them fuelled (refuel before they drop under 30 and lose their safe zone), and relights the ones that go out.
 // Used to prove each night is winnable and to produce replays for visual evidence.
 // Navigation: Dijkstra on a 1 m grid over the night's heightfield (walls block, drops allowed,
 // bounce pads are one-way flight edges), re-planned every few ticks.
 import type { InputFrame } from "../sim/inputs.js";
 import type { NightMap } from "../sim/maps.js";
 import type { Scenario } from "../sim/scenario.js";
-import { step } from "../sim/step.js";
+import { litNeeded, step } from "../sim/step.js";
 import { TUNING, WORLD } from "../sim/tuning.js";
 import { DEFAULT_INPUT, type GameState, type InputState, type Vec3, type World } from "../sim/types.js";
-import { createWorld, distXZ } from "../sim/world.js";
+import { capacity, createWorld, distXZ, timeLeftS } from "../sim/world.js";
 
 export interface AutoplayResult {
   frames: InputFrame[];
@@ -174,7 +176,18 @@ function walk(g: Grid, from: number, to: number): boolean {
 }
 
 // ---------- bot ----------
-export function autoplay(seed: number, night = 1, scenario: Scenario = {}, maxTicks = 21600): AutoplayResult {
+/** Strategy knobs (defaults chosen by a sweep over seeds 1–8 of each night, see docs/notes/ai-log.md). */
+export interface BotOptions {
+  /** Pulse when at least this many active shades are in range (the motes it burns are scarce). */
+  pack: number;
+  /** Light never-lit lanterns only while more than this many seconds are left; then hoard for the final relights. */
+  lightUntil: number;
+  /** Final phase: seconds before dawn when the bot makes lanterns safe until dawn. */
+  final: number;
+}
+export const BOT_DEFAULTS: BotOptions = { pack: 3, lightUntil: 110, final: 69 };
+
+export function autoplay(seed: number, night = 1, scenario: Scenario = {}, maxTicks = 21600, opts: BotOptions = BOT_DEFAULTS): AutoplayResult {
   const w = createWorld(seed, night, scenario);
   const grid = buildGrid(w.map);
   const frames: InputFrame[] = [];
@@ -190,7 +203,7 @@ export function autoplay(seed: number, night = 1, scenario: Scenario = {}, maxTi
     const p = w.player;
     const airborne = !p.grounded || p.falling;
     if (!airborne && (k >= replanAt || path.length === 0)) {
-      ({ path, goal, goalLantern } = plan(w, grid));
+      ({ path, goal, goalLantern } = plan(w, grid, opts));
       replanAt = k + REPLAN_TICKS;
     }
     // Unstick: no progress for 1.5 s -> replan now.
@@ -212,6 +225,9 @@ export function autoplay(seed: number, night = 1, scenario: Scenario = {}, maxTi
     let dash = false;
     let pulse = false;
     let flee: [number, number] | null = null;
+    // Ticket-03 nights last until dawn with every shade spawned: a pack of chasing shades on our heels blocks the
+    // way to the motes. One pulse stuns the whole pack for 2 s (3 motes); spend it when a pack is in range.
+    if (pulseReady && packInRange(w) >= opts.pack) pulse = true;
     if (close && threat && !airborne) {
       if (dashReady && safeDash(w, threat.dir)) dash = true;
       // Motes are the scarce resource (pulse burns 3, a hit only drops half and they can be picked up again):
@@ -263,7 +279,7 @@ export function autoplay(seed: number, night = 1, scenario: Scenario = {}, maxTi
 }
 
 /** Choose a goal (lantern if we carry enough, else the nearest reachable mote) and a path to it. */
-function plan(w: World, g: Grid): { path: Vec3[]; goal: "lantern" | "mote" | null; goalLantern: string } {
+function plan(w: World, g: Grid, opts: BotOptions): { path: Vec3[]; goal: "lantern" | "mote" | null; goalLantern: string } {
   const p = w.player;
   // We may stand in a margin cell (e.g. after dodging), or beside a ramp whose surface covers the cell centre:
   // let the search leave the cell from our real height.
@@ -273,18 +289,11 @@ function plan(w: World, g: Grid): { path: Vec3[]; goal: "lantern" | "mote" | nul
   const { dist, parent } = flood(g, start, danger(w, g));
   if (saved !== undefined) g.h[start] = saved;
   const reach = (pos: Vec3) => dist[cellOf(g, pos)] ?? Infinity;
-  const unlit = w.lanterns.filter((l) => !l.lit && reach(l.pos) < Infinity).sort((a, b) => reach(a.pos) - reach(b.pos));
-  const lantern = unlit[0];
   const motes = w.motes
     .filter((m) => Math.abs(m.pos[1] - (g.h[cellOf(g, m.pos)] ?? NaN)) < 0.6 && reach(m.pos) < Infinity)
     .sort((a, b) => reach(a.pos) - reach(b.pos));
-  const need = lantern ? TUNING.lantern_cost - lantern.deposited : Infinity;
-  const goLantern =
-    lantern !== undefined &&
-    p.carried > 0 &&
-    (p.carried >= need || p.carried >= TUNING.carry_capacity || motes.length === 0 ||
-      // close to the lantern with a decent load: drop it off first
-      (reach(lantern.pos) < 6 && p.carried >= 5));
+  const lantern = chooseLantern(w, reach, motes.length === 0, opts);
+  const goLantern = lantern !== undefined;
   const goalPos = goLantern ? lantern!.pos : motes[0]?.pos;
   if (!goalPos) return { path: [], goal: null, goalLantern: "" };
   const cells: number[] = [];
@@ -294,12 +303,52 @@ function plan(w: World, g: Grid): { path: Vec3[]; goal: "lantern" | "mote" | nul
   return { path, goal: goLantern ? "lantern" : "mote", goalLantern: goLantern ? lantern!.id : "" };
 }
 
+/**
+ * Which lantern to walk to now, if any (Ticket-03). A relight costs 5 motes for 100 fuel, a refuel 1 mote per 10 fuel,
+ * so the bot does not keep lanterns alive all night:
+ * - early (more than `lightUntil` s left): light never-lit lanterns (+100 each, +2 capacity), let them burn out;
+ * - then bank motes: put up to (cost − 1) into unlit lanterns, which keep their deposit, so a bag of ≥ 5 does not
+ *   attract drifters and a hit drops less; the final relight then needs a single mote;
+ * - final `final` seconds: make enough lanterns "safe" (fuel ≥ time left + 31, i.e. still ≥ 30 at dawn, so they never
+ *   lose their safe zone or get drained) by the cheapest nearby action: relight (5), light (10) or refuel.
+ */
+function chooseLantern(w: World, reach: (p: Vec3) => number, noMotes: boolean, opts: BotOptions) {
+  const p = w.player;
+  if (p.carried <= 0) return undefined;
+  type L = World["lanterns"][number];
+  const T = timeLeftS(w);
+  const fuel = (l: L) => l.fuel / WORLD.fuel_units_per_fuel;
+  const ok = (l: L) => reach(l.pos) < Infinity;
+  const byReach = (a: L, b: L) => reach(a.pos) - reach(b.pos);
+  const full = p.carried >= capacity(w) || noMotes;
+  const costOf = (l: L) => (l.everLit ? TUNING.relight_cost : TUNING.lantern_cost);
+  if (T > opts.final) {
+    if (T <= opts.lightUntil) {
+      const bank = w.lanterns
+        .filter((l) => !l.lit && ok(l) && costOf(l) - 1 - l.deposited >= Math.max(2, p.carried) && p.carried >= 2)
+        .sort(byReach)[0];
+      return p.carried >= 4 || full ? bank : undefined;
+    }
+    const fresh = w.lanterns.filter((l) => !l.lit && !l.everLit && ok(l)).sort(byReach)[0];
+    const bankNow = w.map.drifters && p.carried >= 4; // drifter nights: do not walk around with ≥ 5
+    if (fresh && (p.carried >= TUNING.lantern_cost - fresh.deposited || full || bankNow || (reach(fresh.pos) < 6 && p.carried >= 5))) return fresh;
+    return undefined;
+  }
+  const keep = Math.min(TUNING.fuel_max, T + 31);
+  const safe = w.lanterns.filter((l) => l.lit && fuel(l) >= keep).length;
+  if (safe >= Math.min(w.lanterns.length, litNeeded(w.lanterns.length) + 1)) return undefined;
+  const cost = (l: L) =>
+    l.lit ? Math.ceil((keep - fuel(l) + 1) / TUNING.fuel_per_mote) : (l.everLit ? TUNING.relight_cost : TUNING.lantern_cost) - l.deposited;
+  const todo = w.lanterns.filter((l) => ok(l) && !(l.lit && fuel(l) >= keep)).sort(byReach);
+  return todo.find((l) => p.carried >= cost(l)) ?? (full ? todo[0] : undefined);
+}
+
 /** Extra path cost near shades that can hurt (stunned / spawning ones and other levels are ignored). */
 function danger(w: World, g: Grid): Float64Array {
   const extra = new Float64Array(g.nx * g.nz);
   const R = 5;
   for (const s of w.shades) {
-    if (s.state === "stunned" || s.state === "spawning") continue;
+    if (s.state === "stunned" || s.state === "spawning" || s.state === "drain") continue;
     const ci = Math.floor(s.pos[0] - g.x0);
     const cj = Math.floor(s.pos[2] - g.z0);
     for (let i = ci - R; i <= ci + R; i++)
@@ -326,6 +375,15 @@ function closestThreat(w: World): { d: number; dir: [number, number] } | null {
     if (!best || d < best.d) best = { d, dir: d > 0 ? [(p.pos[0] - s.pos[0]) / d, (p.pos[2] - s.pos[2]) / d] : [1, 0] };
   }
   return best;
+}
+
+/** Active shades within pulse range (3D from feet + 0.8 m, with a small margin). */
+function packInRange(w: World): number {
+  const p = w.player;
+  const c = [p.pos[0], p.pos[1] + WORLD.pulse_center_h, p.pos[2]];
+  return w.shades.filter(
+    (s) => (s.state === "chase" || s.state === "wander") && Math.hypot(s.pos[0] - c[0]!, s.pos[1] - c[1]!, s.pos[2] - c[2]!) <= TUNING.pulse_radius - 0.3,
+  ).length;
 }
 
 /** A straight dash of 2.8 m along `dir` stays on ground at about our level. */
