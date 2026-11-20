@@ -72,7 +72,7 @@ Phase 2 xong khi cả 14 dòng là "Đạt" và lệnh ở dòng 14 in ra một 
 | 3 | Test cũ bị luật mới làm sai: sửa hoặc xóa có lý do, không skip | `phase-3-assumptions.md` §1; `grep -rn "\.skip\|\.todo" tests` rỗng | Đạt |
 | 4 | Changelog các thay đổi phá vỡ tương thích | `CHANGELOG.md` | Đạt |
 | 5 | Test Phase 1–2 không bị thay vẫn đạt | `npm test` (154/154) | Đạt |
-| 6 | Mỗi Đêm thắng được | `autoplay.test.ts`; bot yếu ở Đêm 2–3 (§6 assumptions) | Đạt (bot: Chưa đạt về tỉ lệ thắng) |
+| 6 | Mỗi Đêm thắng được | `autoplay.test.ts` (seed 1, 7 × 3 Đêm); quét seed 1–48: 48/48 · 48/48 · 45/48 (§6 assumptions) | Đạt |
 | 7 | Tag `phase-3` trên GitHub | `git ls-remote --tags origin phase-3` | Xem lịch sử git |
 
 ## Các phase sau (để chuẩn bị, không làm trước)

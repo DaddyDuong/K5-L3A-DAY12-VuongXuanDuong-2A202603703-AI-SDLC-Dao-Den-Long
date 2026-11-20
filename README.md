@@ -101,15 +101,16 @@ CI chạy cùng bộ test mỗi lần push (`.github/workflows/ci.yml`).
 ### Bot tự chơi và phát lại
 
 ```bash
-npm run autoplay -- --seed 1 --night 3      # bot chơi qua sim thật, ghi public/replays/n3-seed1-win.inputs.json
+npm run autoplay -- --seed 7 --night 3      # bot chơi qua sim thật, ghi public/replays/n3-seed7-win.inputs.json
 npm run build && npm start                  # rồi mở một trong các URL:
-# http://localhost:4173/?seed=1&night=3&replay=replays/n3-seed1-win.inputs.json&speed=2                 (một Đêm)
-# http://localhost:4173/?seed=7,11,1&replay=replays/n{night}-seed{seed}-win.inputs.json&speed=4         (cả 3 Đêm → Bình Minh)
+# http://localhost:4173/?seed=7&night=3&replay=replays/n3-seed7-win.inputs.json&speed=2      (một Đêm)
+# http://localhost:4173/?seed=7&replay=replays/n{night}-seed7-win.inputs.json&speed=4         (cả 3 Đêm → Bình Minh)
 # thêm &fps=1 để hiện đồng hồ FPS; trong console: __bench(180) đo ms/khung ở 1280×720
 ```
 
 File inputs đúng định dạng Test Contract, nên cũng chạy được bằng lệnh headless ở trên và ra cùng điểm. Với luật
-Ticket-03 bot chỉ thắng được một số seed ở Đêm 2–3 (Đêm 2: 11, 14; Đêm 3: 1), xem `phase-3-assumptions.md` §6.
+Ticket-03 bot gửi đom đóm trước vào đèn chưa sáng rồi thắp trong phút cuối; quét seed 1–48 thắng 48/48 · 48/48 · 45/48
+(Đêm 1 · 2 · 3), xem `phase-3-assumptions.md` §6.
 
 ## Tài liệu
 

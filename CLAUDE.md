@@ -14,7 +14,7 @@ Contract **v1.2** (Ticket-02 + Ticket-03, `docs/notes/ticket-0N.md`). Correct > 
 - Typecheck (sim + web + tests): `npm run typecheck`
 - Headless: `npm run headless -- --seed 1 --night 1|2|3 --ticks 600 --out out.jsonl [--inputs f.json] [--scenario f.json]`
 - Play: `npm run dev` (or `npm start` after build). `?night=N` jumps to a night, `?fps=1` shows FPS + `__bench(n)`.
-- Bot win + replay evidence: skill `play-and-capture` (per-night seeds 7 / 11 / 1, `?seed=7,11,1`)
+- Bot win + replay evidence: skill `play-and-capture` (seed 7 for all nights; `?seed=a,b,c` = one seed per night)
 
 ## Layout
 - `src/sim/` pure game logic, shared by web + headless. `step(world, input)` = exactly one 1/60 s tick, in the

@@ -106,11 +106,29 @@ chỉ đọc `World`, không có luật riêng.
 
 ## 6. Bot (autoplay) với luật mới
 
-Thắp lại chỉ tốn 5 đom đóm cho 100 dầu, còn châm dầu tốn 1 đom đóm cho 10 dầu. Vì vậy bot không giữ đèn sáng cả đêm:
-(1) đầu đêm thắp các đèn chưa từng sáng (+100 điểm, +2 sức chứa) rồi để chúng tự cạn; (2) sau đó gửi đom đóm vào đèn
-đã tắt (tối đa giá − 1, đèn giữ phần đã nạp), để không mang ≥ 5 con (Gió Lạc) và bị đánh thì rơi ít hơn; (3) trong 69 s
-cuối, làm cho đủ `ceil(0.6 n) + 1` đèn "an toàn tới bình minh" (`fuel ≥ thời gian còn + 31`, tức vẫn ≥ 30 lúc bình
-minh nên không bao giờ bị hút) bằng việc rẻ nhất ở gần: thắp lại, thắp, hoặc châm dầu. Tỏa Sáng khi có ≥ 3 Bóng Mực
-trong tầm. Quét seed 1–24: Đêm 1 thắng 18/24, Đêm 2 chỉ 2/24 (seed 11, 14), Đêm 3 thắng seed 1 (chưa quét đủ).
-**Chưa đạt:** bot Đêm 2–3 yếu (mất thời gian né Bóng Mực, Gió Lạc cướp, đom đóm khan); `autoplay.test.ts` chỉ dùng
-seed đã biết thắng để chứng minh *thắng được*, không phải tỉ lệ thắng.
+Luật Ticket-03 đổi mục tiêu (thắng = đủ đèn sáng lúc bình minh), nên bot cần chiến thuật mới (CLAUDE.md cho phép, phải
+ghi lại ở đây). Một Đêm có khoảng 20 + thời lượng/4 đom đóm (Đêm 2: ~87, Đêm 3: ~95), còn đèn sáng hao 1 dầu/s.
+
+**Chiến thuật (bản cuối):** cách rẻ nhất để một đèn sáng lúc bình minh là gửi trước `giá − 1` đom đóm vào một đèn chưa
+từng sáng (đèn chưa sáng giữ phần đã gửi), rồi thắp nó bằng 1 con trong 69 s cuối. Đèn thắp lúc còn ≤ 69 s vẫn còn
+≥ 31 dầu lúc bình minh, nên không bao giờ mất vùng an toàn hay bị hút. Mỗi đèn chỉ tốn 10 con, trong khi "thắp sớm, để
+cạn, thắp lại" tốn 10 + 5. Bot nhắm `ceil(0.6 n) + 1` đèn (dư 1). Chi tiết:
+- Gửi khi mang ≥ 4 (Gió Lạc chỉ cướp túi ≥ 5), và chỉ vào đèn còn chỗ ≥ số đang mang: E nạp `min(mang, giá − đã gửi)`,
+  nên mang nhiều hơn chỗ trống sẽ thắp đèn quá sớm.
+- Không Tỏa Sáng mỗi khi có ≥ 3 Bóng Mực trong tầm (mỗi lần mất 3 con). Chỉ Tỏa Sáng khi không nhặt/gửi được gì
+  trong 20 s mà có Bóng Mực trong tầm (một con đuổi chắn giữa bot và mục tiêu), hoặc để cứu Ngọn Lửa cuối.
+- Đường đi: chi phí phụ quanh Bóng Mực đang đuổi chỉ trong 3 m (Mây 6 m/s nhanh hơn chúng); vòng 5 m làm bot chạy
+  vòng quanh một con suốt 2 phút. Bot bị đẩy vào vòng cấm quanh bục nhảy thì được bước ra (trước đây đứng yên tới chết).
+
+**Quá trình tìm ra** (chẩn đoán bằng cách đếm sự kiện mỗi ván: nhặt, nạp, Tỏa Sáng, bị cướp, bị đánh):
+
+| Bản bot | Đêm 1 | Đêm 2 | Đêm 3 | Nguyên nhân thua chính |
+|---|---|---|---|---|
+| Thắp sớm, để cạn, thắp lại 69 s cuối; Tỏa Sáng khi ≥ 3 bóng | 18/24 | 2/24 | 1/24 | ~1/3 số đom đóm đốt vào Tỏa Sáng; 15 con mỗi đèn |
+| Gửi trước rồi thắp cuối đêm, bỏ Tỏa Sáng theo đàn | 21/24 | 12/12 | 10/12 | bị một bóng đuổi chặn đường; thắp nhầm đèn sớm |
+| + chỉ gửi khi đủ chỗ, Tỏa Sáng khi kẹt 20 s, vòng né 3 m | 24/24 | 23/24 | 22/24 | đứng kẹt trong vòng bục nhảy (Đêm 2) |
+| **+ được bước ra khỏi vòng bục nhảy (bản cuối)** | **48/48** | **48/48** | **45/48** | Đêm 3: bị 2 bóng ép ở mép đảo khi chỉ mang 1–2 con |
+
+Bán kính vòng né được kiểm tra trên seed mới 25–48 (3 m: 69/72; 4 m: 65/72) trước khi chốt. `autoplay.test.ts` chạy
+seed 1 và 7 cho cả ba Đêm; replay web dùng seed 7 cho cả ba Đêm (`?seed=7&replay=replays/n{night}-seed7-win.inputs.json`).
+Bot vẫn không tối ưu về điểm (không thắp sớm để lấy sức chứa và vùng an toàn); mục đích là chứng minh *thắng được*.
