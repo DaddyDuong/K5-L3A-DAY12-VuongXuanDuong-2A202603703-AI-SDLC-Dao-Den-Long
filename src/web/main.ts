@@ -1,6 +1,7 @@
 // Rendering, screens and keyboard/mouse only. All gameplay lives in src/sim (same step() as headless).
 // Flow (Ticket-02 item 3): menu → night intro → play → result → next night … → Bình Minh after night 3.
 import * as THREE from "three";
+import { BENCH, benchCamera, createBenchWorld } from "../sim/bench.js";
 import { InputTimeline, parseInputs, type InputFrame } from "../sim/inputs.js";
 import { MAPS, type NightId } from "../sim/maps.js";
 import { litNeeded, step } from "../sim/step.js";
@@ -23,6 +24,8 @@ const nightParam = Number(params.get("night") ?? "0");
 const replayUrl = params.get("replay");
 const speed = Math.max(0.25, Number(params.get("speed") ?? "1") || 1);
 const showFps = params.has("fps");
+// Ticket-04 §1: ?bench=<seed>&duration=<s> plays the standard benchmark scene (used by `bench_cmd`, src/app/bench.ts).
+const benchParam = params.get("bench");
 
 const INTROS: Record<NightId, string> = {
   1: "Mây à, đèn trên Đảo Bến tắt hết cả rồi. Gom đom đóm thắp đèn, và giữ ít nhất ba ngọn còn sáng tới lúc trời hửng nhé. Đèn cạn dầu thì châm thêm; đèn sắp cạn là Bóng Mực kéo tới hút.",
@@ -453,6 +456,7 @@ function tick(now: number) {
 }
 
 addEventListener("resize", () => {
+  if (benchParam !== null) return; // the bench keeps its 1280×720 drawing buffer
   renderer.setSize(innerWidth, innerHeight);
   view?.resize(innerWidth / innerHeight);
 });
@@ -507,7 +511,76 @@ function seedFor(n: number): string {
   return list[n - 1] ?? list[0] ?? "";
 }
 
-if (replayUrl) {
+// ---------- benchmark scene (Ticket-04 §1, P4-A1…A10) ----------
+// Fixed 1280×720 drawing buffer at pixel ratio 1, night 1 with full lighting and the HUD, no input, the sim stepped at
+// 60 Hz from real time, the camera on its 15 s orbit. dt = time between two animation frames; the first 3 s are warm-up,
+// then frames are measured until their sum reaches `duration`. The frame times are posted to the bench server.
+function runBench(benchSeed: number, durationS: number) {
+  render("");
+  renderer.setPixelRatio(1);
+  renderer.setSize(1280, 720);
+  const w = createBenchWorld(benchSeed);
+  const v = new NightView(MAPS[1], 1280 / 720);
+  world = w;
+  view = v;
+  hud.show(true);
+  hud.setTag(`BENCH · seed ${benchSeed} · ${durationS} s`);
+  const dts: number[] = [];
+  let first = -1;
+  let prev = -1;
+  let total = 0;
+  let firstFrameEpoch = 0;
+  let measureStartEpoch = 0;
+  let simAcc = 0;
+  const epoch = () => performance.timeOrigin + performance.now();
+  const frame = (now: number) => {
+    if (first < 0) first = now;
+    else {
+      simAcc += Math.min(0.25, (now - prev) / 1000);
+      while (simAcc >= DT) {
+        step(w, DEFAULT_INPUT);
+        simAcc -= DT;
+      }
+    }
+    v.update(w, 0, now / 1000);
+    v.camera.position.set(...benchCamera((now - first) / 1000));
+    v.camera.lookAt(0, 0, 0);
+    hud.update(w, v.camera, now / 1000);
+    renderer.render(v.scene, v.camera);
+    if (prev < 0) firstFrameEpoch = epoch();
+    else if (now - first >= BENCH.warmupMs) {
+      if (dts.length === 0) measureStartEpoch = epoch();
+      dts.push(now - prev);
+      total += now - prev;
+    }
+    prev = now;
+    if (total < durationS * 1000) {
+      requestAnimationFrame(frame);
+      return;
+    }
+    const gl = renderer.getContext();
+    const dbg = gl.getExtension("WEBGL_debug_renderer_info");
+    const report = {
+      dts,
+      firstFrameEpoch,
+      measureStartEpoch,
+      measureEndEpoch: epoch(),
+      gl: String(dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER)),
+      three: THREE.REVISION,
+      ua: navigator.userAgent,
+      inner: [innerWidth, innerHeight],
+      canvas: [renderer.domElement.width, renderer.domElement.height],
+      dpr: devicePixelRatio,
+    };
+    hud.setTag(`BENCH xong: ${dts.length} khung`);
+    void fetch("api/bench", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(report) });
+  };
+  requestAnimationFrame(frame);
+}
+
+if (benchParam !== null) {
+  runBench(Number(benchParam) || 0, Number(params.get("duration") ?? "30") || 30);
+} else if (replayUrl) {
   const first: NightId = nightParam >= 1 && nightParam <= 3 ? (nightParam as NightId) : 1;
   const nights: NightId[] = replayUrl.includes("{night}") ? [1, 2, 3] : [first];
   Promise.all(
@@ -527,4 +600,4 @@ if (replayUrl) {
     });
 } else if (nightParam >= 1 && nightParam <= 3) showIntro(nightParam as NightId);
 else showMenu();
-requestAnimationFrame(tick);
+if (benchParam === null) requestAnimationFrame(tick);

@@ -152,6 +152,11 @@ export interface World {
   randomMotes: boolean;
   randomDrifters: boolean;
   windEnabled: boolean;
+  /**
+   * Ticket-04 §1 benchmark scene only (never set by the headless CLI): no fuel burn, pickup, contacts, spawning or
+   * end of night, and shades keep wandering. See src/sim/bench.ts.
+   */
+  bench: boolean;
   /** Contract tick (steps run, including paused ones). */
   steps: number;
   /** True once the first step ran (night_start emitted). */

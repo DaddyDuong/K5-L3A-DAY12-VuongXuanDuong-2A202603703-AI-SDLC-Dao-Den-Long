@@ -46,6 +46,7 @@ export function createWorld(seed: number, night = 1, sc: Scenario = {}): World {
     randomMotes: sc.random_motes !== false,
     randomDrifters: sc.random_drifters !== false,
     windEnabled: sc.wind_enabled !== false,
+    bench: false,
     steps: 0,
     started: false,
     simTicks: 0,

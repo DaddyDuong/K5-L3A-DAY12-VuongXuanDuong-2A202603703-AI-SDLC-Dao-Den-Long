@@ -1,9 +1,11 @@
 {
-  "contract_version": "1.2",
+  "contract_version": "1.3",
   "team": "2A202603703-VuongXuanDuong",
   "build_cmd": "npm ci && npm run build",
-  "run_cmd": "npm start",
+  "run_cmd": "node dist-headless/app/run.js",
   "headless_cmd": "node dist-headless/headless/cli.js",
+  "bench_cmd": "node dist-headless/app/bench.js",
+  "soak_cmd": "node --expose-gc dist-headless/headless/soak.js",
   "tuning": {
     "player_speed": 6,
     "carry_capacity": 10,

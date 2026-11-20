@@ -49,19 +49,21 @@ export function step(w: World, input: InputState): SimEvent[] {
   w.simTicks++;
   const s = w.simTicks;
 
+  // Ticket-04 §1: the benchmark scene turns off fuel burn, pickup, damage, spawning and the end of the night.
+  const live = !w.bench;
   tickTimers(w, s); // 2
-  burnFuel(w, events); // 2 (Ticket-03): decay + drain, then lanterns with fuel ≤ 0 go out
+  if (live) burnFuel(w, events); // 2 (Ticket-03): decay + drain, then lanterns with fuel ≤ 0 go out
   movePlayer(w, input, pressed, events); // 3
   const away = w.player.falling; // waiting to respawn: no pickup / interact / pulse / contact (A7)
-  if (!away) pickup(w, events); // 4
+  if (!away && live) pickup(w, events); // 4
   if (!away && pressed("interact")) interact(w, events); // 5
   updateSafeZones(w); // 6
   if (!away && pressed("pulse")) pulse(w, events); // 7
   moveShades(w); // 8
   moveDrifters(w);
-  if (!away) contacts(w, events); // 9
-  spawn(w, s, events); // 10
-  checkGameOver(w, events); // 11
+  if (!away && live) contacts(w, events); // 9
+  if (live) spawn(w, s, events); // 10
+  if (live) checkGameOver(w, events); // 11
   return events;
 }
 
@@ -394,7 +396,7 @@ function moveShades(w: World): void {
     }
     if (s.state === "drain") continue; // stands still and drains (step 2 of the next tick)
     const d = distXZ(s.pos, p);
-    if (s.state === "wander" && d <= WORLD.shade_detect) s.state = "chase";
+    if (s.state === "wander" && d <= WORLD.shade_detect && !w.bench) s.state = "chase"; // bench: wander only (P4-A6)
     else if (s.state === "chase" && d > WORLD.shade_lose) s.state = "wander";
     if (s.state === "chase") {
       s.targetLanternId = null; // a chasing shade keeps chasing Mây

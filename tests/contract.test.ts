@@ -4,11 +4,11 @@ import { TUNING } from "../src/sim/tuning.js";
 
 const contract = JSON.parse(readFileSync("game.contract.json", "utf8"));
 
-describe("game.contract.json (AC22, AC47)", () => {
-  // Ticket-03 §7: contract v1.2 replaces v1.1 (phase-3-assumptions.md §1).
-  it("has the required top-level fields, contract v1.2", () => {
-    expect(contract.contract_version).toBe("1.2");
-    for (const k of ["team", "build_cmd", "run_cmd", "headless_cmd"]) {
+describe("game.contract.json (AC22, AC47, AC61)", () => {
+  // Ticket-04 §6: contract v1.3 replaces v1.2 and adds bench_cmd + soak_cmd (phase-4-assumptions.md §1).
+  it("has the required top-level fields, contract v1.3", () => {
+    expect(contract.contract_version).toBe("1.3");
+    for (const k of ["team", "build_cmd", "run_cmd", "headless_cmd", "bench_cmd", "soak_cmd"]) {
       expect(typeof contract[k]).toBe("string");
       expect(contract[k].length).toBeGreaterThan(0);
     }
@@ -35,8 +35,10 @@ describe("game.contract.json (AC22, AC47)", () => {
     });
   });
 
-  it("headless_cmd points at the built CLI", () => {
-    const script = contract.headless_cmd.split(" ")[1];
-    expect(existsSync(script)).toBe(true);
+  it("headless_cmd, run_cmd, bench_cmd and soak_cmd point at built scripts", () => {
+    for (const k of ["headless_cmd", "run_cmd", "bench_cmd", "soak_cmd"]) {
+      const script = contract[k].split(" ").find((a: string) => a.endsWith(".js"));
+      expect(existsSync(script), k).toBe(true);
+    }
   });
 });
