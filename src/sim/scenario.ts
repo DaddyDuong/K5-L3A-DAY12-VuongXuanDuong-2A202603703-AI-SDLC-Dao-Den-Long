@@ -11,16 +11,17 @@ export interface Scenario {
     dash_cd_ticks?: number;
     pulse_cd_ticks?: number;
     charm_ticks?: number;
+    successful_lights?: number;
   };
   random_motes?: boolean;
   random_shades?: boolean;
   random_drifters?: boolean;
   wind_enabled?: boolean;
   motes?: Vec3[];
-  shades?: { id?: string; pos: Vec3; state?: ShadeState; state_ticks_left?: number }[];
+  shades?: { id?: string; pos: Vec3; state?: ShadeState; state_ticks_left?: number; target_lantern_id?: string }[];
   drifters?: { id?: string; pos: Vec3; state?: DrifterState; stolen?: number; state_ticks_left?: number }[];
   charms?: { id?: string; pos: Vec3; available?: boolean; respawn_ticks?: number }[];
-  lanterns?: { id: string; pos?: Vec3; lit?: boolean; deposited?: number }[];
+  lanterns?: { id: string; pos?: Vec3; lit?: boolean; deposited?: number; fuel?: number; ever_lit?: boolean }[];
   time_left_s?: number;
 }
 
@@ -39,6 +40,7 @@ export function parseScenario(raw: unknown, night = 1): Scenario {
     if ("carried" in p) sc.player.carried = nonNegInt(p.carried, "player.carried");
     if ("flames" in p) sc.player.flames = nonNegInt(p.flames, "player.flames");
     for (const k of PLAYER_TICKS) if (k in p) sc.player[k] = nonNegInt(p[k], `player.${k}`);
+    if ("successful_lights" in p) sc.player.successful_lights = nonNegInt(p.successful_lights, "player.successful_lights");
   }
   for (const k of FLAGS) {
     if (k in raw) {
@@ -47,6 +49,7 @@ export function parseScenario(raw: unknown, night = 1): Scenario {
     }
   }
   if ("motes" in raw) sc.motes = arr(raw.motes, "motes").map((m, i) => vec3(m, `motes[${i}]`));
+  const lanternIds = new Set(Array.from({ length: nightMap(night).lanterns.length }, (_, i) => `L${i + 1}`));
   if ("shades" in raw) {
     sc.shades = arr(raw.shades, "shades").map((s, i) => {
       const w = `shades[${i}]`;
@@ -55,6 +58,11 @@ export function parseScenario(raw: unknown, night = 1): Scenario {
       if ("id" in s) out.id = str(s.id, `${w}.id`);
       if ("state" in s) out.state = oneOf(s.state, SHADE_STATES, `${w}.state`);
       if ("state_ticks_left" in s) out.state_ticks_left = nonNegInt(s.state_ticks_left, `${w}.state_ticks_left`);
+      if ("target_lantern_id" in s && s.target_lantern_id !== null) {
+        const t = str(s.target_lantern_id, `${w}.target_lantern_id`);
+        if (!lanternIds.has(t)) throw new MalformedError(`scenario: ${w}.target_lantern_id must be one of L1..L${lanternIds.size}`);
+        out.target_lantern_id = t;
+      }
       return out;
     });
   }
@@ -85,8 +93,8 @@ export function parseScenario(raw: unknown, night = 1): Scenario {
     });
   }
   if ("lanterns" in raw) {
-    const n = nightMap(night).lanterns.length;
-    const ids = new Set(Array.from({ length: n }, (_, i) => `L${i + 1}`));
+    const n = lanternIds.size;
+    const ids = lanternIds;
     sc.lanterns = arr(raw.lanterns, "lanterns").map((l, i) => {
       if (!isObj(l) || typeof l.id !== "string" || !ids.has(l.id)) {
         throw new MalformedError(`scenario: lanterns[${i}] needs an id in L1..L${n}`);
@@ -98,6 +106,17 @@ export function parseScenario(raw: unknown, night = 1): Scenario {
         out.lit = l.lit;
       }
       if ("deposited" in l) out.deposited = nonNegInt(l.deposited, `lanterns[${i}].deposited`);
+      if ("fuel" in l) {
+        const f = l.fuel;
+        if (typeof f !== "number" || !Number.isFinite(f) || f < 0 || f > 100) {
+          throw new MalformedError(`scenario: lanterns[${i}].fuel must be a number in [0, 100]`);
+        }
+        out.fuel = f;
+      }
+      if ("ever_lit" in l) {
+        if (typeof l.ever_lit !== "boolean") throw new MalformedError(`scenario: lanterns[${i}].ever_lit must be boolean`);
+        out.ever_lit = l.ever_lit;
+      }
       return out;
     });
   }

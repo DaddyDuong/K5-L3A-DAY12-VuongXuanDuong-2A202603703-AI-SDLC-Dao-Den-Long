@@ -23,7 +23,7 @@ describe("AC23 standard maps", () => {
       const spawns = new Set(MAPS[n].moteSpawns.map((p) => p.join(",")));
       for (const m of s.motes) expect(spawns.has(m.pos.join(","))).toBe(true);
       expect(s.player.pos).toEqual(n === 3 ? [0, 0, -30] : [0, 0, 0]);
-      expect(s.time_left_s).toBe({ 1: 300, 2: 330, 3: 360 }[n]);
+      expect(s.time_left_s).toBe({ 1: 240, 2: 270, 3: 300 }[n]); // Ticket-03 §3 (was 300 / 330 / 360)
       expect(s.shades).toEqual([]);
     });
   }
@@ -53,11 +53,12 @@ describe("AC25 pickup with height (XZ ≤ 1.0 and |Δy| ≤ 1.5)", () => {
 });
 
 describe("AC26 deposit by min(carried, missing)", () => {
-  it("10 carried into a lantern holding 3: deposit 7, keep 3, light, +70 +100", () => {
+  // Ticket-03 §5: +5 per mote (was +10), so 7 × 5 + 100 = 135 (was 170).
+  it("10 carried into a lantern holding 3: deposit 7, keep 3, light, +35 +100", () => {
     const r = run(1, scn({ player: { carried: 10 }, lanterns: [{ id: "L1", pos: [0, 0, 1], deposited: 3 }] }), press("interact"));
     expect(events(r, "deposit")[0]!.data).toEqual({ lantern_id: "L1", amount: 7, deposited: 10 });
     expect(snap(r, 1).player.carried).toBe(3);
-    expect(snap(r, 1).score).toBe(170);
+    expect(snap(r, 1).score).toBe(135);
   });
 });
 
@@ -437,7 +438,8 @@ describe("AC41 pause", () => {
     expect(events(r, "paused").map((e) => [e.tick, e.data])).toEqual([[11, {}]]);
     expect(events(r, "resumed").map((e) => [e.tick, e.data])).toEqual([[21, {}]]);
     const p = snap(r, 15);
-    expect(p).toMatchObject({ tick: 15, sim_tick: 10, state: "paused", time_left_s: 299.833 });
+    // Ticket-03: night 1 now lasts 240 s (was 300 s).
+    expect(p).toMatchObject({ tick: 15, sim_tick: 10, state: "paused", time_left_s: 239.833 });
     expect(p.player.pos).toEqual([0, 0, 1]);
     expect(snap(r, 20).player.pos).toEqual([0, 0, 1]);
     expect(snap(r, 21)).toMatchObject({ sim_tick: 11, state: "playing" });
@@ -453,8 +455,10 @@ describe("AC41 pause", () => {
 describe("AC43 performance and determinism over full nights", () => {
   it("a 21 600-tick night runs headless in well under 30 s", () => {
     const t0 = Date.now();
+    // Ticket-03: L4 now runs out of fuel (70 s to lose its safe zone), so the idle player is hit and used to lose
+    // at tick 4872. The run must still last 21 600 ticks with every shade spawned: give the player enough flames.
     const r = runCli(["--seed", "1", "--night", "3", "--ticks", "21600"], {
-      scenario: { time_left_s: 400, wind_enabled: false, player: { pos: [0, 0, -30] }, lanterns: [{ id: "L4", pos: [0, 0, -30], lit: true }] },
+      scenario: { time_left_s: 400, wind_enabled: false, player: { pos: [0, 0, -30], flames: 1000 }, lanterns: [{ id: "L4", pos: [0, 0, -30], lit: true }] },
     });
     const ms = Date.now() - t0;
     expect(r.code).toBe(0);

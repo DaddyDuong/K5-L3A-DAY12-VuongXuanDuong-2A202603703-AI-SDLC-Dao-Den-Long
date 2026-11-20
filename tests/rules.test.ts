@@ -42,14 +42,14 @@ const litAllBut = (id: string, pos: number[]) =>
   ["L1", "L2", "L3", "L4", "L5"].map((l) => (l === id ? { id: l, pos } : { id: l, lit: true }));
 
 describe("R2/R3 deposit and light", () => {
-  it("AC4: partial deposit keeps lantern unlit (Ticket-02: +10 per mote deposited)", () => {
+  it("AC4: partial deposit keeps lantern unlit (Ticket-03: +5 per mote deposited, was +10)", () => {
     const r = run(1, scn({ player: { carried: 3 }, lanterns: [{ id: "L1", pos: [0, 0, 1.5] }] }), press("interact"));
     expect(events(r, "deposit")).toEqual([
       { type: "event", tick: 1, name: "deposit", data: { lantern_id: "L1", amount: 3, deposited: 3 } },
     ]);
     expect(events(r, "lantern_lit")).toHaveLength(0);
     expect(snap(r, 1).player.carried).toBe(0);
-    expect(snap(r, 1).score).toBe(30);
+    expect(snap(r, 1).score).toBe(15);
     expect(snap(r, 1).lanterns[0]).toMatchObject({ id: "L1", lit: false, deposited: 3 });
   });
 
@@ -58,7 +58,7 @@ describe("R2/R3 deposit and light", () => {
     const names = r.lines.filter((l) => l.type === "event" && l.name !== "night_start").map((l) => l.name);
     expect(names).toEqual(["deposit", "lantern_lit"]);
     expect(events(r, "lantern_lit")[0]).toMatchObject({ tick: 1, data: { lantern_id: "L1" } });
-    expect(snap(r, 1)).toMatchObject({ score: 10 * 10 + 100 });
+    expect(snap(r, 1)).toMatchObject({ score: 10 * 5 + 100 }); // Ticket-03: +5 per mote (was +10)
     expect(snap(r, 1).lanterns[0]).toMatchObject({ lit: true, deposited: 10 });
   });
 
@@ -80,29 +80,41 @@ describe("R2/R3 deposit and light", () => {
     expect(events(run(1, scn({ player: { carried: 0 }, lanterns: [{ id: "L1", pos: [0, 0, 2] }] }), press("interact")), "deposit")).toHaveLength(0);
   });
 
-  it("nearest unlit lantern wins; lit lanterns are skipped", () => {
+  // Ticket-03 §1 replaces "lit lanterns are skipped": a lit lantern that is not full can receive (refuel). It has
+  // already burnt 1/60 in step 2 before the interact of step 5, so the nearest one, L1, takes 1 mote.
+  it("nearest receiving lantern wins; a lit, not full lantern is refuelled (Ticket-03)", () => {
     const r = run(1, scn({
       player: { carried: 2 },
       lanterns: [{ id: "L1", pos: [0, 0, 1], lit: true }, { id: "L2", pos: [0, 0, 2] }, { id: "L3", pos: [0, 0, -1.5] }],
+    }), press("interact"));
+    expect(events(r, "deposit")).toHaveLength(0);
+    expect(events(r, "refuel")[0]!.data).toEqual({ lantern_id: "L1", amount: 1, fuel: 100 });
+  });
+
+  it("among unlit lanterns the nearest wins", () => {
+    const r = run(1, scn({
+      player: { carried: 2 },
+      lanterns: [{ id: "L2", pos: [0, 0, 2] }, { id: "L3", pos: [0, 0, -1.5] }],
     }), press("interact"));
     expect(events(r, "deposit")[0]!.data.lantern_id).toBe("L3");
   });
 });
 
-describe("R10 win", () => {
-  it("AC16: lighting the last lantern wins with time + flame bonus", () => {
+// R10 is replaced by Ticket-03 §3 ("[THAY THẾ] thắng ngay khi tất cả đèn sáng"): lighting every lantern no
+// longer ends the night, and the win (dawn_survived) is only decided at dawn. AC16 / AC17 keep their setups
+// but now assert the new rule; the dawn win itself is covered by phase3.test.ts (AC50, AC51).
+describe("R10 win (replaced by Ticket-03 §3)", () => {
+  it("AC16: lighting the last lantern does NOT end the night any more (no all_lit)", () => {
     const r = run(100, scn({ player: { carried: 10, flames: 3 }, lanterns: litAllBut("L5", [0, 0, 2]) }), press("interact"));
-    expect(events(r, "game_over")).toEqual([
-      { type: "event", tick: 1, name: "game_over", data: { result: "won", reason: "all_lit" } },
-    ]);
-    // Ticket-02: 10 motes × 10 deposited + 100 lantern + 2 * floor(300 - 1/60) + 50 * 3
-    expect(r.lines.at(-1)).toEqual({ type: "end", ticks: 1, state: "won", score: 100 + 100 + 2 * 299 + 150 });
+    expect(events(r, "lantern_lit")).toHaveLength(1);
+    expect(events(r, "game_over")).toEqual([]);
+    expect(r.lines.at(-1)).toEqual({ type: "end", ticks: 100, state: "playing", score: 10 * 5 + 100 });
   });
 
-  it("AC17: all lanterns pre-lit by scenario wins at tick 1 without per_lantern", () => {
+  it("AC17: all lanterns pre-lit by scenario: no event, no score, the night goes on", () => {
     const r = run(100, scn({ lanterns: ["L1", "L2", "L3", "L4", "L5"].map((id) => ({ id, lit: true })) }));
     expect(events(r, "lantern_lit")).toHaveLength(0);
-    expect(r.lines.at(-1)).toEqual({ type: "end", ticks: 1, state: "won", score: 2 * 299 + 50 * 3 });
+    expect(r.lines.at(-1)).toEqual({ type: "end", ticks: 100, state: "playing", score: 0 });
   });
 });
 

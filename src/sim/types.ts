@@ -48,6 +48,8 @@ export interface Player {
   /** > 0 while waiting to respawn after a fall (A7). */
   respawnTicks: number;
   falling: boolean;
+  /** Ticket-03 §4: successful lights (incl. relights) this night; capacity = 10 + 2 × this, max 20. */
+  successfulLights: number;
 }
 
 export interface Lantern {
@@ -55,10 +57,14 @@ export interface Lantern {
   pos: Vec3;
   lit: boolean;
   deposited: number;
+  /** Ticket-03 §1: fuel in integer units of 1/60 (6000 = 100); 0 when unlit. */
+  fuel: number;
+  everLit: boolean;
+  relitCount: number;
 }
 
-export type ShadeState = "spawning" | "wander" | "chase" | "recoil" | "stunned";
-export const SHADE_STATES: readonly ShadeState[] = ["spawning", "wander", "chase", "recoil", "stunned"];
+export type ShadeState = "spawning" | "wander" | "chase" | "recoil" | "stunned" | "drain";
+export const SHADE_STATES: readonly ShadeState[] = ["spawning", "wander", "chase", "recoil", "stunned", "drain"];
 
 export interface Shade {
   id: string;
@@ -72,6 +78,10 @@ export interface Shade {
   pushStep: [number, number];
   wanderTarget: Vec3 | null;
   wanderTicks: number;
+  /** Ticket-03 §2: the weak lantern a wandering shade heads to / the lantern it drains. */
+  targetLanternId: string | null;
+  /** Ticks spent draining the current lantern (fuel_drain is logged every 60). */
+  drainTicks: number;
 }
 
 export type DrifterState = "idle" | "chase" | "flee" | "removed";
@@ -118,6 +128,9 @@ export interface SimEvent {
     | "mote_picked"
     | "deposit"
     | "lantern_lit"
+    | "refuel"
+    | "lantern_out"
+    | "fuel_drain"
     | "pulse"
     | "player_hit"
     | "shade_spawned"

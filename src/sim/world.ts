@@ -19,12 +19,23 @@ export function createWorld(seed: number, night = 1, sc: Scenario = {}): World {
   const map = nightMap(night);
   const rng = new Rng(seed);
 
-  const lanterns: Lantern[] = map.lanterns.map((pos, i) => ({ id: `L${i + 1}`, pos: [...pos], lit: false, deposited: 0 }));
+  const lanterns: Lantern[] = map.lanterns.map((pos, i) => ({
+    id: `L${i + 1}`,
+    pos: [...pos],
+    lit: false,
+    deposited: 0,
+    fuel: 0,
+    everLit: false,
+    relitCount: 0,
+  }));
   for (const l of sc.lanterns ?? []) {
     const target = lanterns.find((x) => x.id === l.id)!;
     if (l.pos) target.pos = [...l.pos];
     if (l.lit !== undefined) target.lit = l.lit;
     if (l.deposited !== undefined) target.deposited = l.deposited;
+    // Ticket-03 §7: a lantern set lit without fuel gets fuel 100; a lit lantern has been lit (P3-A6).
+    if (target.lit) target.fuel = Math.round((l.fuel ?? TUNING.fuel_max) * WORLD.fuel_units_per_fuel);
+    target.everLit = l.ever_lit ?? target.lit;
   }
 
   const start: Vec3 = sc.player?.pos ? [...sc.player.pos] : [...map.start];
@@ -58,6 +69,7 @@ export function createWorld(seed: number, night = 1, sc: Scenario = {}): World {
       launch: null,
       respawnTicks: 0,
       falling: false,
+      successfulLights: sc.player?.successful_lights ?? 0,
     },
     lanterns,
     shades: [],
@@ -84,6 +96,7 @@ export function createWorld(seed: number, night = 1, sc: Scenario = {}): World {
     // Scenario shades are active immediately (contract v1.0 §D) unless a state is given.
     for (const s of sc.shades) {
       const shade = makeShade(s.id ?? newShadeId(w, sc.shades), s.pos, s.pos[1] - (map.groundAt(s.pos[0], s.pos[2]) ?? 0));
+      shade.targetLanternId = s.target_lantern_id ?? null;
       if (s.state) setShadeState(shade, s.state, s.state_ticks_left);
       else shade.state = activeState(w, shade);
       w.shades.push(shade);
@@ -147,7 +160,24 @@ export function makeShade(id: string, pos: Vec3, hover: number): Shade {
     pushStep: [0, 0],
     wanderTarget: null,
     wanderTicks: 0,
+    targetLanternId: null,
+    drainTicks: 0,
   };
+}
+
+/** Ticket-03 §4: carrying capacity = 10 + 2 × successful lights, at most 20. */
+export function capacity(w: World): number {
+  return Math.min(TUNING.capacity_max, TUNING.carry_capacity + WORLD.capacity_per_light * w.player.successfulLights);
+}
+
+/** Ticket-03 §2: a lit lantern with fuel ≥ 30 keeps its safe zone; below 30 it loses it. */
+export function hasSafeZone(l: Lantern): boolean {
+  return l.lit && l.fuel >= WORLD.low_fuel_units;
+}
+
+/** Fuel as output: real number, 1 decimal; 0 when unlit (Ticket-03 §7). */
+export function fuelOut(l: Lantern): number {
+  return l.lit ? Math.round(l.fuel / (WORLD.fuel_units_per_fuel / 10)) / 10 : 0;
 }
 
 export function setShadeState(s: Shade, state: ShadeState, ticksLeft?: number): void {

@@ -16,7 +16,7 @@ describe("headless output shape (contract §B, §E + v1.1)", () => {
     expect(s.time_left_s).toBe(TUNING.night1_duration_s);
     expect(s.wind).toEqual({ active: false, dir_deg: 0 });
     expect(s.player).toEqual({
-      pos: [0, 0, 0], vel: [0, 0, 0], grounded: true, flames: TUNING.flames, carried: 0,
+      pos: [0, 0, 0], vel: [0, 0, 0], grounded: true, flames: TUNING.flames, carried: 0, capacity: 10, // v1.2
       invuln: false, dash_cd_s: 0, pulse_cd_s: 0, charm_s: 0,
     });
     expect(s.lanterns.map((l: any) => l.id)).toEqual(["L1", "L2", "L3", "L4", "L5"]);

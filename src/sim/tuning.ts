@@ -1,4 +1,4 @@
-// Single source of truth for gameplay numbers (Ticket-02 "Số liệu chuẩn").
+// Single source of truth for gameplay numbers (Ticket-02 "Số liệu chuẩn" + Ticket-03 contract v1.2).
 // `TUNING` must stay identical to `tuning` in game.contract.json (enforced by tests/contract.test.ts).
 export const TUNING = {
   player_speed: 6,
@@ -9,9 +9,9 @@ export const TUNING = {
   interact_radius: 2,
   pulse_cost: 3,
   pulse_radius: 5,
-  night1_duration_s: 300,
-  night2_duration_s: 330,
-  night3_duration_s: 360,
+  night1_duration_s: 240, // Ticket-03: 240 / 270 / 300 s
+  night2_duration_s: 270,
+  night3_duration_s: 300,
   flames: 3,
   invuln_s: 1.5,
   hit_drop_ratio: 0.5,
@@ -25,12 +25,25 @@ export const TUNING = {
   dash_speed: 14,
   dash_duration_s: 0.2,
   dash_cooldown_s: 1.5,
+  // Ticket-03 (contract v1.2): lantern fuel, relight, win ratio, drain, growing capacity.
+  fuel_max: 100,
+  fuel_decay_per_s: 1.0,
+  fuel_per_mote: 10,
+  relight_cost: 5,
+  win_ratio: 0.6,
+  drain_per_s: 5,
+  low_fuel_threshold: 30,
+  capacity_max: 20,
+  // Ticket-03 §5 replaces the whole score formula (P3-A10).
   score: {
-    per_mote: 10, // per mote deposited into a lantern (Ticket-02)
-    per_lantern: 100,
+    per_mote: 5, // per mote put into a lantern: first light, relight or refuel
+    per_lantern: 100, // first light
+    per_relight: 40,
     per_stun: 5, // per shade hit by a pulse, every time
-    per_second_left: 2,
-    per_flame_left: 50,
+    per_stun_drain: 15, // total for a shade that was draining just before the hit
+    per_lit_at_dawn: 50, // win only: each lit lantern at dawn, plus floor(fuel)
+    per_second_left: 0, // time bonus removed ("Thưởng thời gian: Bỏ")
+    per_flame_left: 50, // win only
   },
 } as const;
 
@@ -98,6 +111,18 @@ export const WORLD = {
   wind_duration: 300,
   wind_warn: 120,
   wind_speed: 2,
+  // Fuel (Ticket-03 §1): integer units of 1/60 fuel, so 1 unit = decay of one tick.
+  fuel_units_per_fuel: TR,
+  // x fuel/s = x/60 fuel per tick = x units per tick.
+  decay_tick_units: TUNING.fuel_decay_per_s, // 1 unit per tick
+  drain_tick_units: TUNING.drain_per_s, // 5 units per tick per draining shade
+  fuel_max_units: TUNING.fuel_max * TR,
+  fuel_per_mote_units: TUNING.fuel_per_mote * TR,
+  low_fuel_units: TUNING.low_fuel_threshold * TR,
+  drain_radius: 2, // XZ distance to the lantern to start / keep draining
+  drain_chase_radius: 6, // drain -> chase when Mây comes this close
+  fuel_drain_event_every: 60,
+  capacity_per_light: 2,
 } as const;
 
 export type Tuning = typeof TUNING;

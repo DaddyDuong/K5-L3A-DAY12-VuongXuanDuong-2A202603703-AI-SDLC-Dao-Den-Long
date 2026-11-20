@@ -1,7 +1,7 @@
-// Snapshot line, Test Contract v1.1 (v1.0 fields + Ticket-02 additions). Only contract fields (A25).
+// Snapshot line, Test Contract v1.2 (v1.0 fields + Ticket-02 + Ticket-03 additions). Only contract fields (A25).
 import { WORLD } from "./tuning.js";
 import type { Vec3, World } from "./types.js";
-import { round3, timeLeftS } from "./world.js";
+import { capacity, fuelOut, round3, timeLeftS } from "./world.js";
 
 const v3 = (p: Vec3): Vec3 => [round3(p[0]), round3(p[1]), round3(p[2])];
 const secs = (ticks: number) => round3(ticks / WORLD.tick_rate);
@@ -23,12 +23,21 @@ export function snapshot(w: World) {
       grounded: p.grounded,
       flames: p.flames,
       carried: p.carried,
+      capacity: capacity(w),
       invuln: p.invulnTicks > 0,
       dash_cd_s: secs(p.dashCdTicks),
       pulse_cd_s: secs(p.pulseCdTicks),
       charm_s: secs(p.charmTicks),
     },
-    lanterns: w.lanterns.map((l) => ({ id: l.id, pos: v3(l.pos), lit: l.lit, deposited: l.deposited })),
+    lanterns: w.lanterns.map((l) => ({
+      id: l.id,
+      pos: v3(l.pos),
+      lit: l.lit,
+      deposited: l.deposited,
+      fuel: fuelOut(l),
+      ever_lit: l.everLit,
+      relit_count: l.relitCount,
+    })),
     shades: w.shades.map((s) => ({ id: s.id, pos: v3(s.pos), state: s.state })),
     motes_active: w.motes.length,
     motes: w.motes.map((m) => ({ id: m.id, pos: v3(m.pos), kind: m.kind, ttl_s: m.ttl === null ? null : secs(m.ttl) })),
