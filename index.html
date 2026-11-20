@@ -18,8 +18,13 @@
         --red: #c8102e;
         --panel: rgba(14, 20, 48, 0.86);
       }
+      /* Ticket-04 §4: every UI text ≥ 18 px at 1280×720 (sizes in rem, 1rem = 18 px); "Chữ lớn" = ×1.25 (22.5 px). */
+      html { font-size: 18px; }
+      html.large { font-size: 22.5px; }
       html, body { margin: 0; height: 100%; overflow: hidden; background: var(--sky); color: var(--text);
                    font-family: "Segoe UI", system-ui, sans-serif; user-select: none; }
+      body { font-size: 1rem; }
+      input, button, select { font: inherit; }
       canvas { display: block; }
       .hidden { display: none !important; }
       body.hit::after { content: ""; position: fixed; inset: 0; pointer-events: none;
@@ -29,34 +34,35 @@
       /* ---------- HUD ---------- */
       #hud { position: fixed; inset: 0; pointer-events: none; text-shadow: 0 1px 3px #000a; }
       #flames { position: absolute; top: 14px; left: 16px; display: flex; gap: 6px; }
+      body.rm #timer.low { animation: none; } /* reduced motion: steady red */
       .flame { width: 26px; height: 34px; }
       .flame path { fill: #ff7a2f; filter: drop-shadow(0 0 6px #ffb347); }
       .flame .inner { fill: #ffe9b0; }
       .flame.off path { fill: #3a3450; filter: none; }
       .flame.off .inner { fill: #2a2440; }
-      #timer { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); font-size: 34px;
+      #timer { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); font-size: 1.9rem;
                font-weight: 700; letter-spacing: 2px; font-variant-numeric: tabular-nums; }
       #timer.low { color: var(--danger); animation: blink 1s steps(2, start) infinite; }
       @keyframes blink { 50% { opacity: 0.25; } }
-      #stats { position: absolute; top: 14px; right: 16px; text-align: right; font-size: 18px; line-height: 1.35; }
-      #stats .lbl { opacity: 0.7; font-size: 13px; margin-right: 6px; }
-      #score { color: var(--gold); font-weight: 700; font-size: 22px; }
+      #stats { position: absolute; top: 14px; right: 16px; text-align: right; font-size: 1rem; line-height: 1.35; }
+      #stats .lbl { opacity: 0.75; font-size: 1rem; margin-right: 6px; }
+      #score { color: var(--gold); font-weight: 700; font-size: 1.25rem; }
       #motebar { position: absolute; bottom: 22px; left: 50%; transform: translateX(-50%); display: flex; gap: 5px;
                  padding: 6px 8px; border-radius: 10px; background: rgba(14, 20, 48, 0.55); }
       #motebar i { width: 18px; height: 18px; border-radius: 50%; border: 1px solid #ffe58a55; background: #ffffff10; }
       #motebar i.full { background: radial-gradient(circle, var(--mote) 0 35%, var(--halo) 60%, #ffe58a00 72%);
                         border-color: var(--halo); box-shadow: 0 0 8px var(--halo); }
       #cooldowns { position: absolute; bottom: 18px; right: 18px; display: flex; gap: 10px; }
-      .cd { --p: 1; width: 54px; height: 54px; border-radius: 50%; display: grid; place-items: center; position: relative;
-            background: conic-gradient(#ffb34799 calc(var(--p) * 360deg), #ffffff14 0); font-size: 11px; }
+      .cd { --p: 1; width: 5.4rem; height: 5.4rem; border-radius: 50%; display: grid; place-items: center; position: relative;
+            background: conic-gradient(#ffb34799 calc(var(--p) * 360deg), #ffffff14 0); font-size: 1rem; }
       .cd::before { content: ""; position: absolute; inset: 5px; border-radius: 50%; background: rgba(14, 20, 48, 0.9); }
       .cd span { position: relative; text-align: center; line-height: 1.1; opacity: 0.55; }
       .cd.ready span { opacity: 1; }
       .cd.ready { box-shadow: 0 0 10px #ffb34788; }
       .cd.charm { background: conic-gradient(var(--red) 360deg, #0000 0); }
-      .cd b { display: block; font-size: 15px; }
-      #prompt { position: absolute; bottom: 74px; left: 50%; transform: translateX(-50%); padding: 7px 14px;
-                border-radius: 8px; background: rgba(14, 20, 48, 0.75); border: 1px solid var(--lit); font-size: 17px;
+      .cd b { display: block; font-size: 1rem; }
+      #prompt { position: absolute; bottom: 5.2rem; left: 50%; transform: translateX(-50%); padding: 7px 14px;
+                border-radius: 8px; background: rgba(14, 20, 48, 0.75); border: 1px solid var(--lit); font-size: 1rem;
                 opacity: 0; transition: opacity 0.15s; }
       #prompt.show { opacity: 1; }
       #arrow { position: absolute; top: 0; left: 0; width: 0; height: 0; opacity: 0; }
@@ -65,51 +71,91 @@
                        border-top: 11px solid transparent; border-bottom: 11px solid transparent;
                        filter: drop-shadow(0 0 6px var(--lit)); }
       #banner { position: absolute; top: 64px; left: 50%; transform: translateX(-50%); padding: 6px 14px; border-radius: 8px;
-                background: rgba(14, 20, 48, 0.7); font-size: 16px; opacity: 0; transition: opacity 0.25s; }
+                background: rgba(14, 20, 48, 0.7); font-size: 1rem; opacity: 0; transition: opacity 0.25s; }
       #banner.show { opacity: 1; }
       #banner.danger { color: var(--danger); }
       #motebar.wide i { width: 13px; height: 13px; }
-      #carry { position: absolute; bottom: 52px; left: 50%; transform: translateX(-50%); font-size: 13px; opacity: 0.85;
+      #carry { position: absolute; bottom: 3.3rem; left: 50%; transform: translateX(-50%); font-size: 1rem; opacity: 0.9;
                font-variant-numeric: tabular-nums; }
       /* Ticket-03 §6 "Bảng màu dễ phân biệt": danger text becomes #FFFFFF and always carries a ⚠ icon. */
       body.cb { --danger: #ffffff; }
       body.cb #timer.low::before, body.cb #banner.danger::before, body.cb .result.lost h1::before { content: "⚠ "; }
-      .settings label.check { display: flex; gap: 10px; align-items: center; }
-      #tag { position: absolute; bottom: 6px; left: 12px; font-size: 11px; opacity: 0.5; }
-      #fps { position: fixed; top: 54px; left: 16px; font: 12px ui-monospace, monospace; background: #000a; padding: 3px 6px;
+      .settings label.check { display: flex; gap: 10px; align-items: center; margin: 10px 0; }
+      #tag { position: absolute; top: 3.4rem; left: 16px; font-size: 1rem; opacity: 0.55; }
+      #fps { position: fixed; top: 5.2rem; left: 16px; font: 1rem ui-monospace, monospace; background: #000a; padding: 3px 6px;
              border-radius: 4px; z-index: 5; }
+      /* Ticket-04 §4 captions (sound cues) and edge arrows toward new shades / low-fuel lanterns. */
+      #captions { position: absolute; left: 16px; bottom: 16px; display: flex; flex-direction: column; gap: 6px; max-width: 34%; }
+      .cap { padding: 5px 12px; border-radius: 8px; background: rgba(5, 8, 22, 0.82); font-size: 1rem; line-height: 1.3;
+             border-left: 4px solid var(--gold); }
+      .cap .ic { margin-right: 8px; }
+      .cap.shade { border-left-color: #b48bff; }
+      .cap.fuel, .cap.time { border-left-color: var(--danger); }
+      .cap.wind { border-left-color: #b9d77a; }
+      body.cb .cap.shade { border-left-color: #00b3ff; }
+      .edge-arrow { position: absolute; top: 0; left: 0; width: 0; height: 0; opacity: 0; }
+      .edge-arrow.show { opacity: 1; }
+      .edge-arrow::before { content: ""; position: absolute; left: -16px; top: -13px; border-left: 32px solid #b48bff;
+                            border-top: 13px solid transparent; border-bottom: 13px solid transparent;
+                            filter: drop-shadow(0 0 6px #7a3cff); }
+      .edge-arrow.fuel::before { border-left-color: var(--danger); filter: drop-shadow(0 0 6px var(--danger)); }
+      body.cb .edge-arrow.shade::before { border-left-color: #00b3ff; filter: drop-shadow(0 0 6px #00b3ff); }
 
       /* ---------- screens ---------- */
       #screen { position: fixed; inset: 0; display: grid; place-items: center;
                 background: radial-gradient(ellipse at center, rgba(14, 20, 48, 0.25), rgba(14, 20, 48, 0.7)); }
-      .panel { min-width: 340px; max-width: 560px; padding: 28px 34px; border-radius: 14px; background: var(--panel);
+      .panel { min-width: 340px; max-width: 34rem; max-height: calc(100vh - 32px); overflow-y: auto; box-sizing: border-box;
+               padding: 1.3rem 1.8rem; border-radius: 14px; background: var(--panel);
                border: 1px solid #f2c14e44; box-shadow: 0 10px 40px #0008; text-align: center; }
-      .panel h1 { margin: 6px 0 10px; font-size: 38px; color: var(--lit); text-shadow: 0 0 22px #ffb34766; }
-      .panel .eyebrow { text-transform: uppercase; letter-spacing: 3px; font-size: 12px; color: var(--gold); }
-      .panel .sub { opacity: 0.8; margin: 4px 0 16px; }
-      .panel .keys { font-size: 12px; opacity: 0.65; margin-top: 18px; line-height: 1.6; }
-      .panel blockquote { margin: 8px 0 14px; font-style: italic; line-height: 1.55; font-size: 16px; }
-      .panel cite { display: block; margin-top: 6px; font-style: normal; color: var(--gold); font-size: 14px; }
-      .panel button { display: block; width: 100%; margin: 8px 0; padding: 10px 14px; border-radius: 9px;
-                      border: 1px solid #f2c14e55; background: #ffffff0d; color: var(--text); font-size: 16px; cursor: pointer; }
+      .panel h1 { margin: 6px 0 10px; font-size: 2.1rem; color: var(--lit); text-shadow: 0 0 22px #ffb34766; }
+      .panel h2 { margin: 4px 0 8px; font-size: 1.15rem; color: var(--gold); }
+      .panel .eyebrow { text-transform: uppercase; letter-spacing: 3px; font-size: 1rem; color: var(--gold); }
+      .panel .sub { opacity: 0.85; margin: 4px 0 14px; }
+      .panel .keys { font-size: 1rem; opacity: 0.75; margin-top: 14px; line-height: 1.5; }
+      .panel blockquote { margin: 8px 0 14px; font-style: italic; line-height: 1.5; font-size: 1rem; }
+      .panel cite { display: block; margin-top: 6px; font-style: normal; color: var(--gold); font-size: 1rem; }
+      .panel button { display: block; width: 100%; margin: 7px 0; padding: 0.45rem 0.8rem; border-radius: 9px;
+                      border: 1px solid #f2c14e55; background: #ffffff0d; color: var(--text); font-size: 1rem; cursor: pointer; }
       .panel button:hover { background: #f2c14e22; }
       .panel button.primary { background: var(--lit); color: #2a1a08; font-weight: 700; border-color: var(--lit); }
       .panel button.primary:hover { filter: brightness(1.08); }
       .panel .row { display: flex; gap: 8px; }
-      .panel .row button { font-size: 13px; }
+      .panel .row button { font-size: 1rem; }
       .panel table { width: 100%; border-collapse: collapse; margin: 6px 0 16px; }
       .panel td { padding: 5px 4px; border-bottom: 1px solid #ffffff14; text-align: left; }
       .panel td:last-child { text-align: right; font-variant-numeric: tabular-nums; }
-      .panel tr.total td { font-weight: 700; color: var(--gold); font-size: 18px; border-bottom: none; }
+      .panel tr.total td { font-weight: 700; color: var(--gold); font-size: 1.1rem; border-bottom: none; }
+      .panel th { padding: 5px 4px; text-align: left; color: var(--gold); font-weight: 600; border-bottom: 1px solid #f2c14e44; }
+      .panel.board { max-width: 46rem; }
+      .panel table.lb td, .panel table.lb th { padding: 5px 0.7rem; white-space: nowrap; }
+      .panel table.lb td:last-child, .panel table.lb th:last-child { text-align: right; }
+      .panel .note { opacity: 0.75; font-size: 1rem; word-break: break-all; }
+      .panel .msg { min-height: 1.3em; margin: 6px 0; }
+      .panel .msg.err { color: var(--danger); }
+      .panel .msg.ok { color: #9be89b; }
+      form.save { margin: 10px 0; text-align: left; }
+      form.save input { flex: 1; padding: 0.4rem 0.6rem; border-radius: 8px; border: 1px solid var(--lit); background: #0008;
+                        color: var(--text); user-select: text; }
+      form.save button { width: auto; margin: 0; }
+      form.save button[type="button"] { width: 100%; margin-top: 6px; }
+      .panel.settings { max-width: 56rem; }
+      .settings .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 0 2rem; text-align: left; }
+      .settings table.keymap td { padding: 2px 4px; }
+      .settings button.key { width: 8.5rem; margin: 2px 0 2px auto; padding: 0.2rem 0.5rem; text-align: center; }
+      .settings button.key.wait { border-color: var(--lit); color: var(--lit); }
+      .settings button.key.clash { border-color: var(--danger); background: #ff5a5f33; }
       .result.lost h1 { color: var(--danger); text-shadow: 0 0 22px #ff5a5f55; }
       .settings label { display: block; text-align: left; margin: 14px 0; }
       .settings output { float: right; color: var(--gold); }
-      .settings input { width: 100%; accent-color: var(--lit); }
+      .settings input[type="range"] { width: 100%; accent-color: var(--lit); }
+      .settings input[type="checkbox"] { width: 1.1rem; height: 1.1rem; margin: 0; flex: none; accent-color: var(--lit); }
       body.dawn #screen { background: linear-gradient(to top, #ffb347cc, #ff8a5c88 35%, #1b235055); }
     </style>
   </head>
   <body>
     <div id="hud" class="hidden">
+      <div id="edge"></div>
+      <div id="captions" aria-live="polite"></div>
       <div id="flames"></div>
       <div id="timer">05:00</div>
       <div id="stats">

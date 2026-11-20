@@ -3,11 +3,25 @@
 // and an arrow to the nearest unlit lantern when it is off screen.
 // Ticket-03: lit count shows the dawn target, the bar has one cell per capacity slot with "carried / capacity",
 // and the prompt says light / relight (x/10 or x/5) or refuel (fuel/100).
+// Ticket-04 §4: captions for sound cues and edge-of-screen arrows toward new shades and low-fuel lanterns; key names
+// follow the player's bindings.
 import * as THREE from "three";
 import { TUNING, WORLD } from "../sim/tuning.js";
 import type { World } from "../sim/types.js";
 import { litNeeded } from "../sim/step.js";
 import { capacity, distXZ, timeLeftS } from "../sim/world.js";
+import { keyLabel, type KeyMap } from "./keys.js";
+
+export type CaptionKind = "shade" | "wind" | "time" | "fuel" | "info";
+const CAPTION_ICON: Record<CaptionKind, string> = { shade: "👁", wind: "🍃", time: "⏱", fuel: "🏮", info: "•" };
+
+/** An edge arrow toward a shade or a lantern, shown while the target is off screen, until `until`. */
+interface Pointer {
+  kind: "shade" | "fuel";
+  id: string;
+  until: number;
+  el: HTMLDivElement;
+}
 
 const $ = (id: string) => document.getElementById(id)!;
 
@@ -28,6 +42,10 @@ export class Hud {
   private readonly arrow = $("arrow");
   private readonly banner = $("banner");
   private readonly tag = $("tag");
+  private readonly captions = $("captions");
+  private readonly edge = $("edge");
+  private readonly pointers: Pointer[] = [];
+  private keys: KeyMap | null = null;
   private lastFlames = -1;
   private lastCarried = -1;
   private lastCapacity = -1;
@@ -42,6 +60,63 @@ export class Hud {
 
   setTag(text: string) {
     this.tag.textContent = text;
+  }
+
+  /** Key names on the HUD follow the bindings (Ticket-04 §4 "Đổi phím"). */
+  setKeys(keys: KeyMap) {
+    this.keys = keys;
+    this.cdDash.querySelector("b")!.textContent = keyLabel(keys.dash).replace(" trái", "").replace(" phải", "");
+    this.cdPulse.querySelector("b")!.textContent = keyLabel(keys.pulse);
+  }
+
+  /** A caption line for a sound cue (P4-A24); the newest 3 stay on screen. */
+  caption(text: string, kind: CaptionKind, seconds = 3.5) {
+    const line = document.createElement("div");
+    line.className = `cap ${kind}`;
+    line.innerHTML = `<span class="ic" aria-hidden="true">${CAPTION_ICON[kind]}</span>`;
+    line.append(text);
+    this.captions.append(line);
+    while (this.captions.children.length > 3) this.captions.firstElementChild!.remove();
+    setTimeout(() => line.remove(), seconds * 1000);
+  }
+
+  /** Edge arrow toward shade / lantern `id` for `seconds` (only drawn while it is off screen). */
+  point(kind: Pointer["kind"], id: string, seconds: number, now: number) {
+    const old = this.pointers.find((p) => p.kind === kind && p.id === id);
+    if (old) {
+      old.until = now + seconds;
+      return;
+    }
+    const el = document.createElement("div");
+    el.className = `edge-arrow ${kind}`;
+    this.edge.append(el);
+    this.pointers.push({ kind, id, until: now + seconds, el });
+  }
+
+  clearPointers() {
+    for (const p of this.pointers) p.el.remove();
+    this.pointers.length = 0;
+    this.captions.replaceChildren();
+  }
+
+  /** Places `el` on the screen border in the direction of world point `pos`; returns false when `pos` is on screen. */
+  private toEdge(el: HTMLElement, pos: readonly number[], camera: THREE.Camera, margin = 0.95): boolean {
+    this.v.set(pos[0]!, pos[1]!, pos[2]!).project(camera);
+    const behind = this.v.z > 1;
+    let { x, y } = this.v;
+    if (behind) {
+      x = -x;
+      y = -y;
+    }
+    const off = behind || Math.abs(x) > margin || Math.abs(y) > margin;
+    if (off) {
+      const ang = Math.atan2(y, x);
+      const k = 0.86 / Math.max(Math.abs(Math.cos(ang)), Math.abs(Math.sin(ang)));
+      const sx = ((Math.cos(ang) * k + 1) / 2) * innerWidth;
+      const sy = ((1 - Math.sin(ang) * k) / 2) * innerHeight;
+      el.style.transform = `translate(${sx}px, ${sy}px) rotate(${-ang}rad)`;
+    }
+    return off;
   }
 
   flash(text: string, seconds: number, now: number, danger = false) {
@@ -95,11 +170,12 @@ export class Hud {
     this.prompt.classList.toggle("show", target !== undefined);
     if (target) {
       const fuel = Math.floor(target.fuel / WORLD.fuel_units_per_fuel);
+      const k = keyLabel(this.keys?.interact ?? "KeyE");
       this.prompt.textContent = target.lit
-        ? `E — Châm dầu (${fuel}/${TUNING.fuel_max})`
+        ? `${k} — Châm dầu (${fuel}/${TUNING.fuel_max})`
         : target.everLit
-          ? `E — Thắp lại (${target.deposited}/${TUNING.relight_cost})`
-          : `E — Nạp ánh sáng (${target.deposited}/${TUNING.lantern_cost})`;
+          ? `${k} — Thắp lại (${target.deposited}/${TUNING.relight_cost})`
+          : `${k} — Nạp ánh sáng (${target.deposited}/${TUNING.lantern_cost})`;
     }
     const inRange = target !== undefined;
 
@@ -108,24 +184,28 @@ export class Hud {
     let nearest = unlit[0];
     for (const l of unlit) if (distXZ(p.pos, l.pos) < distXZ(p.pos, nearest!.pos)) nearest = l;
     if (nearest && !inRange) {
-      this.v.set(nearest.pos[0], nearest.pos[1] + 3.5, nearest.pos[2]).project(camera);
-      const behind = this.v.z > 1;
-      let { x, y } = this.v;
-      if (behind) {
-        x = -x;
-        y = -y;
-      }
-      const off = behind || Math.abs(x) > 0.95 || Math.abs(y) > 0.95;
+      const off = this.toEdge(this.arrow, [nearest.pos[0], nearest.pos[1] + 3.5, nearest.pos[2]], camera);
       this.arrow.classList.toggle("show", off);
-      if (off) {
-        const ang = Math.atan2(y, x);
-        const k = 0.86 / Math.max(Math.abs(Math.cos(ang)), Math.abs(Math.sin(ang)));
-        const sx = ((Math.cos(ang) * k + 1) / 2) * innerWidth;
-        const sy = ((1 - Math.sin(ang) * k) / 2) * innerHeight;
-        this.arrow.style.transform = `translate(${sx}px, ${sy}px) rotate(${-ang}rad)`;
-        this.arrow.title = nearest.id;
-      }
+      this.arrow.title = nearest.id;
     } else this.arrow.classList.remove("show");
+
+    // Ticket-04 §4 edge arrows: new shades (4 s) and lanterns that dropped below 30 fuel (6 s), while off screen.
+    for (let i = this.pointers.length - 1; i >= 0; i--) {
+      const ptr = this.pointers[i]!;
+      const target =
+        ptr.kind === "shade"
+          ? w.shades.find((s) => s.id === ptr.id)?.pos
+          : (() => {
+              const l = w.lanterns.find((x) => x.id === ptr.id && x.lit && x.fuel < WORLD.low_fuel_units);
+              return l ? [l.pos[0], l.pos[1] + 3.5, l.pos[2]] : undefined;
+            })();
+      if (!target || now > ptr.until) {
+        ptr.el.remove();
+        this.pointers.splice(i, 1);
+        continue;
+      }
+      ptr.el.classList.toggle("show", this.toEdge(ptr.el, target, camera, 0.9));
+    }
 
     if (now > this.bannerUntil) this.banner.classList.remove("show");
   }

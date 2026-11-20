@@ -81,6 +81,10 @@ export class NightView {
   private readonly dashTrail: THREE.Mesh[] = [];
   private pulseAt = -10;
   private colorblind = false;
+  /** Ticket-04 §4 "Giảm chuyển động": no camera shake, no light flashes, no blinking player. */
+  private reduceMotion = false;
+  private shakeAt = -10;
+  private playerMats: THREE.Material[] = [];
   private dashAt = -10;
   private lastPlayer = new THREE.Vector3();
 
@@ -114,6 +118,10 @@ export class NightView {
 
     ({ group: this.player, pivot: this.lanternPivot } = this.buildPlayer());
     this.scene.add(this.player);
+    this.player.traverse((o) => {
+      const m = (o as THREE.Mesh).material as THREE.Material | undefined;
+      if (m) this.playerMats.push(m);
+    });
 
     this.pulseRing = new THREE.Mesh(
       new THREE.RingGeometry(0.92, 1, 64),
@@ -406,6 +414,10 @@ export class NightView {
     this.colorblind = on;
   }
 
+  setReduceMotion(on: boolean) {
+    this.reduceMotion = on;
+  }
+
   private makeDrifter() {
     const group = new THREE.Group();
     const ribbon = new THREE.Mesh(
@@ -465,6 +477,10 @@ export class NightView {
   dashFx(t: number) {
     this.dashAt = t;
   }
+  /** Short camera shake when Mây is hit or falls (off with reduced motion). */
+  shakeFx(t: number) {
+    this.shakeAt = t;
+  }
   lanternLitFx(id: string, t: number) {
     const v = this.lanterns.get(id);
     if (v) v.litAt = t;
@@ -476,7 +492,13 @@ export class NightView {
     // Player
     this.player.position.set(...p.pos);
     this.player.rotation.y = Math.atan2(p.facing[0], p.facing[1]);
-    this.player.visible = p.respawnTicks === 0 && (p.invulnTicks === 0 || Math.floor(t * 12) % 2 === 0);
+    // Invulnerable: blinks at 12 Hz, or (reduced motion) is drawn half transparent instead.
+    const ghost = p.invulnTicks > 0 && this.reduceMotion;
+    this.player.visible = p.respawnTicks === 0 && (p.invulnTicks === 0 || this.reduceMotion || Math.floor(t * 12) % 2 === 0);
+    for (const m of this.playerMats) {
+      m.transparent = ghost || m.userData.transparent === true;
+      m.opacity = ghost ? 0.45 : 1;
+    }
     const moved = this.lastPlayer.distanceTo(this.player.position);
     this.lastPlayer.copy(this.player.position);
     const swing = Math.min(1, moved / 0.1);
@@ -499,6 +521,13 @@ export class NightView {
     const camY = Math.max(p.pos[1], -6);
     this.camera.position.set(p.pos[0] - Math.sin(yaw) * 8.5, camY + 3.6, p.pos[2] - Math.cos(yaw) * 8.5);
     this.camera.lookAt(p.pos[0], camY + 1.3, p.pos[2]);
+    const sh = (t - this.shakeAt) / 0.35;
+    if (sh < 1 && !this.reduceMotion) {
+      const a = 0.22 * (1 - sh);
+      this.camera.position.x += a * Math.sin(t * 91);
+      this.camera.position.y += a * Math.sin(t * 77 + 1);
+      this.camera.position.z += a * Math.sin(t * 83 + 2);
+    }
 
     // Lanterns + ambient light by progress.
     let lit = 0;
@@ -526,7 +555,7 @@ export class NightView {
         mat.color.setHex(PALETTE.lanternLit);
         mat.emissive.setHex(PALETTE.lanternLit);
         mat.emissiveIntensity = (1.6 + 0.2 * Math.sin(t * 3)) * (dim ? 0.25 : 1);
-        const burst = v.litAt >= 0 ? Math.max(0, 1 - (t - v.litAt) / 1.2) : 0;
+        const burst = v.litAt >= 0 && !this.reduceMotion ? Math.max(0, 1 - (t - v.litAt) / 1.2) : 0; // light flash
         v.light.intensity = (45 + 120 * burst) * (dim ? 0.3 : 1);
         (v.halo.material as THREE.SpriteMaterial).opacity = (0.75 + burst * 0.25) * (dim ? 0.3 : 1);
         v.halo.scale.setScalar(4.5 + burst * 6);

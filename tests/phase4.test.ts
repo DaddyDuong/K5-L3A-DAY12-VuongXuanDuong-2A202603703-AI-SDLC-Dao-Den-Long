@@ -222,3 +222,24 @@ describe("AC70 run_cmd --export-leaderboard", () => {
     expect(run(tmp(), ["--bogus"]).status).toBe(1);
   });
 });
+
+describe("AC72 key remapping: conflicts are refused and named, defaults restorable, stored maps validated", () => {
+  it("rebinding to a free key works; a key used by another action or reserved is refused", async () => {
+    const { ACTIONS, DEFAULT_KEYS, assignKey } = await import("../src/web/keys.js");
+    expect(ACTIONS).toEqual(["forward", "back", "left", "right", "jump", "dash", "interact", "pulse", "pause"]);
+    const r = assignKey(DEFAULT_KEYS, "jump", "KeyJ");
+    expect(r).toEqual({ ok: true, keys: { ...DEFAULT_KEYS, jump: "KeyJ" } });
+    expect(assignKey(DEFAULT_KEYS, "jump", "KeyF")).toEqual({ ok: false, conflict: "Tỏa Sáng" });
+    expect(assignKey(DEFAULT_KEYS, "pause", "Escape")).toMatchObject({ ok: false });
+    expect(assignKey(DEFAULT_KEYS, "left", "ArrowLeft")).toMatchObject({ ok: false });
+    expect(assignKey(DEFAULT_KEYS, "jump", "Space")).toMatchObject({ ok: true }); // its own key again
+  });
+
+  it("a stored map with duplicates resets to the defaults; missing entries fall back to defaults", async () => {
+    const { DEFAULT_KEYS, duplicates, loadKeyMap } = await import("../src/web/keys.js");
+    expect(loadKeyMap({ jump: "KeyF" })).toEqual(DEFAULT_KEYS);
+    expect(loadKeyMap({ jump: "KeyJ" })).toEqual({ ...DEFAULT_KEYS, jump: "KeyJ" });
+    expect(loadKeyMap(null)).toEqual(DEFAULT_KEYS);
+    expect(duplicates({ ...DEFAULT_KEYS, dash: "Space" })).toEqual([["jump", "dash"]]);
+  });
+});
