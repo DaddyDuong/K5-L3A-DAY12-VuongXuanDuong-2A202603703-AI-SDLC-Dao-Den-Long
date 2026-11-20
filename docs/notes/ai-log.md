@@ -87,11 +87,17 @@ Chưa tốt:
 
 ## Token và chi phí — Phase 3
 
-Nguồn: `/cost` của Claude Code ở cuối Phase 3 (phiên mới cho Phase 3 như đã định; có một lần chạm giới hạn sử dụng giữa chừng).
+Nguồn: cộng trường `usage` của mọi phản hồi trong transcript phiên Phase 3
+(`~/.claude/projects/<dự án>/cb8a0e88-….jsonl`, 18:18–20:45 ngày 20/11, mỗi message id tính một lần), tính tới lúc ghi
+dòng này. Phiên mới cho Phase 3 như đã định; có một lần chạm giới hạn sử dụng và một lần tự nén ngữ cảnh.
 
-| Model | Input | Output | Cache read | Cache write | Chi phí |
-|---|---:|---:|---:|---:|---:|
-| _(điền từ `/cost` cuối phiên Phase 3)_ | | | | | |
+| Model | Request | Input | Output | Cache read | Cache write | Chi phí |
+|---|---:|---:|---:|---:|---:|---:|
+| claude-opus-5-5 (agent chính, không dùng subagent) | 168 | 0.4k | 214.2k | 35.4M | 578.5k | ≈ $16 (ước) |
+
+- Chi phí là **ước lượng**: transcript không ghi giá, nên lấy theo tỉ lệ token so với Phase 2 ($22.45 cho 346k output /
+  45.6M cache read / 796k cache write → Phase 3 bằng ~0.6–0.8 lần mỗi loại). Số chính xác: `/cost` cuối phiên.
+- Lũy kế Phase 1 + 2 + 3: **≈ $46** (ước).
 
 Nhận xét (không phụ thuộc số liệu):
 - Khoản tốn nhất là **thử nghiệm bot**: mỗi lượt đánh giá 15 ván ~1–2 phút, một lần quét 18 tổ hợp thông số phải dừng giữa chừng.
