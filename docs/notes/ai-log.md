@@ -47,6 +47,12 @@ Cách đã tiết kiệm:
 Cần cải thiện ở Phase 2:
 - Ngữ cảnh đã dài (cache read lớn): cân nhắc `/compact` hoặc phiên mới khi bắt đầu Phase 2, dựa vào `CLAUDE.md` + `docs/notes/` để khôi phục ngữ cảnh.
 - Gộp nhiều thay đổi nhỏ vào ít lượt gọi công cụ hơn; tránh giải thích dài trong chat.
+| 4 | Đọc Ticket-04 trên lab board + slide giảng viên CP4/CP5, chép vào `ticket-04.md` | "thực hiện phase tiếp theo. không cần lo lắng về deadline." | Subagent đọc web không đọc được slide (app JS) → đọc bằng `get_page_text` trên Chrome sau khi bấm phím mũi tên | gộp, xem bảng token |
+| 4 | ADR-004 + giả định P4-A1…A27 + AC61–AC75 trước khi code | (tiếp kế hoạch) | Kế hoạch đầu dùng Electron cho bench; lệnh `npm install -D electron` bị bộ phân loại an toàn của chế độ tự động từ chối (gói mới ~100 MB). AI không thử lại mà đổi thiết kế: launcher Node + Chrome có sẵn, không thêm dependency (ghi trong ADR-004) | gộp |
+| 4 | Sim: cờ `bench`, cảnh bench, soak runner, contract v1.3, server + bảng xếp hạng, test AC62–AC72 | (tiếp kế hoạch) | Test camera bench đỏ vì `-0 !== 0` khi làm tròn → sửa hàm làm tròn trong test (`|| 0`), không đổi sim. Phát hiện npm nuốt cờ `--export-leaderboard` khi `run_cmd` là `npm start` → đổi `run_cmd` sang `node …/run.js` và ghi lý do ở §1 | gộp |
+| 4 | Đo soak | (tiếp kế hoạch) | Tỷ lệ RSS 1.43 > 1.2. AI thử vài cờ V8 không giúp, rồi in heap JS sau từng Đêm: heap phẳng ~5 MB → không rò rỉ, phần tăng là JIT khởi động. Hỏi người dùng chọn cách đo (người dùng: "tùy bạn đề xuất") → giữ số đúng định nghĩa (1.37, không đạt) kèm phân tích, không "làm nóng" để qua ngưỡng | gộp |
+| 4 | Web: đổi phím, phụ đề + mũi tên mép, giảm chuyển động, chữ 18 px, màn bảng xếp hạng | (tiếp kế hoạch) | Qua ảnh: checkbox bị kéo giãn hết chiều ngang (CSS `width:100%` áp cho mọi input) → chỉ áp cho thanh trượt. Cỡ chữ kiểm bằng script `getComputedStyle` trên mọi màn thay vì nhìn ảnh. Chrome trên Wayland bỏ qua `--force-device-scale-factor` → ghi vào P4-A1 | gộp |
+| 4 | Đóng gói, README, CHANGELOG, CREDITS, bằng chứng | (tiếp kế hoạch) | Máy không có `zip` → viết bộ ghi zip bằng `zlib` của Node, kiểm bằng `zipfile` của Python và chạy thử bản giải nén. Phát hiện `scripts/proof-headless.sh` trỏ tới replay `n3-seed1` đã xóa từ Phase 3 (script hỏng từ đó) → sửa. Chạy soak 33 Đêm thấy RSS có thêm bậc nhỏ về sau → sửa câu "RSS phẳng" trong tài liệu cho đúng số đo | gộp |
 
 ## Đánh giá nhanh Phase 1
 
@@ -108,3 +114,22 @@ Nhận xét (không phụ thuộc số liệu):
 - Phần luật + test xong trong một lượt nhờ quy tắc "trace qua 12 bước trước khi đặt kỳ vọng" trong `CLAUDE.md`;
   chỉ 1 kỳ vọng test sai và được phát hiện ngay.
 - Bằng chứng ảnh: poll DOM + phát phím P (đã ghi vào skill từ Phase 2) giúp chụp đúng khoảnh khắc với ít ảnh.
+
+## Token và chi phí — Phase 4
+
+Phase 4 chạy trong 2 file transcript (một lần tự nén ngữ cảnh giữa chừng), không dùng subagent ngoài 1 lần đọc web.
+Số dưới đây **cộng từ `usage` trong transcript** (chưa có `/cost`; cập nhật khi chạy `/cost` cuối phiên):
+
+| Phần | Request | Output | Cache read | Cache write |
+|---|---:|---:|---:|---:|
+| Trước khi nén (đọc ticket → sim, bench, soak, server, web) | 185 | 225.8k | 39.7M | 590.0k |
+| Sau khi nén (kiểm web, đo, đóng gói, tài liệu) | 121+ | 166.9k+ | 27.1M+ | 481.3k+ |
+| **Tổng (tới lúc ghi)** | **306+** | **392.7k** | **66.8M** | **1.07M** |
+
+- Ước chi phí: cùng cách tính đã lệch ~6% ở Phase 3, lấy tỷ lệ theo Phase 3 (transcript ↔ `/cost` $17.09) →
+  **≈ $23**. Lũy kế 4 phase ≈ **$70**.
+- Lớn nhất vẫn là **cache read** (đọc lại ngữ cảnh): Phase 4 chạm nhiều mảng (sim, Node, web, CSS, tài liệu) nên ngữ
+  cảnh dài; chụp ảnh trình duyệt để kiểm UI cũng tốn.
+
+Cách đã tiết kiệm ở Phase 4: không thêm dependency (không chờ cài/tải); gom thao tác trình duyệt vào `browser_batch`;
+kiểm cỡ chữ và luồng lưu điểm bằng script DOM thay vì nhiều ảnh; tái dùng inputs replay Phase 3 để bắt cảnh đèn < 30.

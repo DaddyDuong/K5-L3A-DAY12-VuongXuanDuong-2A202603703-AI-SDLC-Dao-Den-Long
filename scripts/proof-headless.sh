@@ -44,7 +44,7 @@ for N in 1 2 3; do
   e=$(date +%s%N)
   echo "night $N  seed 1  full-load scenario (1000 flames)  $(( (e - s) / 1000000 )) ms  (limit 30000 ms)  end=$(tail -1 "$TMP/t$N.jsonl")" >> "$OUT/timing.txt"
 done
-# keep one full output log as a sample (night 3, sampled every 600 ticks to stay small)
-$CLI --seed 1 --night 3 --ticks 21600 --inputs public/replays/n3-seed1-win.inputs.json --snapshot-every 600 \
-  --out "$OUT/n3-seed1-every600.jsonl"
+# keep one full output log as a sample (night 3, sampled every 600 ticks to stay small; seed 7 since 3dd65b3)
+$CLI --seed 7 --night 3 --ticks 21600 --inputs public/replays/n3-seed7-win.inputs.json --snapshot-every 600 \
+  --out "$OUT/n3-seed7-every600.jsonl"
 cat "$OUT/replays-end.txt" "$OUT/determinism.txt" "$OUT/timing.txt"

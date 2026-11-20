@@ -1,0 +1,8 @@
+# docs/proof/phase-3/headless/replays-end.txt vs the same replays at this commit
+IDENTICAL end lines (night, inputs, ticks, state, score)
+night 1  inputs=public/replays/n1-seed7-win.inputs.json  end={"type":"end","ticks":14400,"state":"won","score":1137}
+night 2  inputs=public/replays/n2-seed7-win.inputs.json  end={"type":"end","ticks":16200,"state":"won","score":1391}
+night 3  inputs=public/replays/n3-seed7-win.inputs.json  end={"type":"end","ticks":18000,"state":"won","score":1353}
+night 1  seed 7  1554 lines  sha256 355a4f1dacddb043  run2 IDENTICAL
+night 2  seed 7  1762 lines  sha256 d7cd104e24a35fcf  run2 IDENTICAL
+night 3  seed 7  1986 lines  sha256 f1936456c008b6f9  run2 IDENTICAL

@@ -75,9 +75,19 @@ Phase 2 xong khi cả 14 dòng là "Đạt" và lệnh ở dòng 14 in ra một 
 | 6 | Mỗi Đêm thắng được | `autoplay.test.ts` (seed 1, 7 × 3 Đêm); quét seed 1–48: 48/48 · 48/48 · 45/48 (§6 assumptions) | Đạt |
 | 7 | Tag `phase-3` trên GitHub | `git ls-remote --tags origin phase-3` | Xem lịch sử git |
 
-## Các phase sau (để chuẩn bị, không làm trước)
+## Checklist "Phase 4 đã xong" (DoD của Ticket-04 + slide CP4/CP5)
 
-- Phase 3 (Ticket-03, "Đèn cạn dầu"): đổi luật cũ → **sửa/bỏ test cũ phải có lý do** ghi trong `docs/notes/`.
-- Phase 4 (Ticket-04, Contract v1.3): `bench.json`, `soak.json` (tự đo, commit), bảng xếp hạng top 10,
-  accessibility, CHANGELOG/CREDITS/LICENSE, README ≤ 3 lệnh, Release v1.0.0. Cảnh bench phải **tắt** mọi thứ sáng tạo thêm.
-- CP5: video < 5 phút (chơi 3D, headless PASS, lướt CLAUDE.md + git log/tag), link đầu README; `docs/notes/retro.md` 1 trang.
+| # | Điều kiện | Cách tự kiểm | Trạng thái |
+|---|---|---|---|
+| 1 | Bằng chứng game chạy đúng yêu cầu Phase 4 | `docs/proof/README.md` § Phase 4, `phase4.test.ts` AC62–AC72 | Đạt |
+| 2 | `bench.json` tự chạy, commit; cảnh bench tắt sinh quái/sát thương/nhặt/hao dầu (không có thực thể tự chế) | `bench.json`, AC63, P4-A8/A10 | Đạt (166 FPS) |
+| 3 | `soak.json` tự chạy, commit | `soak.json`: 0 crash, tỷ lệ bộ nhớ 1.37 > 1.2 | Có file; ngưỡng bộ nhớ **chưa đạt** (phân tích §6 assumptions) |
+| 4 | Contract v1.3: `bench_cmd`, `soak_cmd`; v1.0–v1.2 giữ nguyên | `contract.test.ts`; `docs/proof/phase-4/headless-unchanged.txt` | Đạt |
+| 5 | Test ẩn Phase 1–3 vẫn đạt | `npm test` (175/175), không `.skip` | Đạt |
+| 6 | Bảng xếp hạng, đổi phím, phụ đề, giảm chuyển động, chữ ≥ 18 px | AC69–AC74, ảnh `docs/proof/phase-4/` | Đạt |
+| 7 | README ≤ 3 lệnh + mô tả, ảnh, yêu cầu hệ thống, điều khiển, test, headless, bench, soak | `README.md` | Đạt |
+| 8 | `CHANGELOG.md` đủ 4 phase, `CREDITS.md`, `LICENSE` | các file ở gốc repo | Đạt |
+| 9 | Retro 1–2 trang | `docs/notes/retro.md` | Đạt |
+| 10 | Nhật ký token/chi phí Phase 4 | `docs/notes/ai-log.md` | Chờ số `/cost` cuối phiên |
+| 11 | Video < 5 phút, link ở đầu README | kịch bản `docs/demo/README.md`; người làm bài tự quay | Chưa (cần người quay) |
+| 12 | Tag `phase-4` + Release `v1.0.0` có zip chạy được | `npm run package`; `gh release view v1.0.0` | Chờ xác nhận để push |

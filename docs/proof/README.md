@@ -1,7 +1,7 @@
 # Bằng chứng kiểm chứng
 
 Chạy lại toàn bộ: `npm ci && npm test` ở tag tương ứng. Mỗi AC (định nghĩa ở
-[`phase-1-assumptions.md`](../notes/phase-1-assumptions.md), [`phase-2-assumptions.md`](../notes/phase-2-assumptions.md) và [`phase-3-assumptions.md`](../notes/phase-3-assumptions.md) §4) là một test chạy **CLI headless thật**
+[`phase-1-assumptions.md`](../notes/phase-1-assumptions.md), [`phase-2-assumptions.md`](../notes/phase-2-assumptions.md), [`phase-3-assumptions.md`](../notes/phase-3-assumptions.md) và [`phase-4-assumptions.md`](../notes/phase-4-assumptions.md) §4) là một test chạy **CLI headless thật**
 (`tests/helpers.ts#runCli`) và kiểm tra dòng JSONL; tên test bắt đầu bằng mã AC.
 
 ## Phase 1
@@ -135,3 +135,30 @@ Thay đổi phá vỡ tương thích: [`CHANGELOG.md`](../../CHANGELOG.md).
 
 Kết quả `npm test` tại commit cuối Phase 3: **154/154 đạt**. Replay Phase 3: `?seed=7&replay=replays/n{night}-seed7-win.inputs.json`
 (cả 3 Đêm → Bình Minh). Replay Phase 2 bị thay vì luật mới; xem ở tag `phase-2`.
+
+## Phase 4 (Ticket-04 "Bình minh: phát hành v1.0.0", Contract v1.3)
+
+Quyết định (ADR-004: bench bằng Chrome có sẵn, không thêm dependency), giả định P4-A1…A27 và kết quả đo:
+[`phase-4-assumptions.md`](../notes/phase-4-assumptions.md) §2, §3, §6. Môi trường đo: [`phase-4/env.txt`](phase-4/env.txt).
+Tái tạo mọi file `.txt`, `bench.json`, `soak.json`: `scripts/proof-phase4.sh`.
+
+| Yêu cầu | AC | Kiểm chứng | Kết quả |
+|---|---|---|---|
+| `contract_version "1.3"`, `bench_cmd`, `soak_cmd`, `run_cmd` trỏ tới file đã build | AC61 | `contract.test.ts` | Đạt |
+| Cảnh bench: 200 Bóng Mực `wander`, 100 đom đóm, L1–L3 sáng dầu 100, Mây ở gốc, tất định seed 42 | AC62 | `phase4.test.ts` › AC62; ảnh [`01-bench-scene-…`](phase-4/01-bench-scene-200-shades-100-motes.jpg) | Đạt |
+| Bench tắt sinh quái, sát thương, nhặt, hao dầu, kết thúc Đêm; Bóng Mực vẫn đi | AC63 | `phase4.test.ts` › AC63 | Đạt |
+| Công thức `avg_fps`, `p1_low_fps`, `frame_ms_p95` | AC64 | `phase4.test.ts` › AC64 | Đạt |
+| `bench_cmd` thật: cửa sổ 1280×720, vsync tắt, 30 s sau 3 s khởi động, thoát 0 | AC65 | [`bench.json`](../../bench.json): 166.4 FPS, 1% low 104.9, p95 7.5 ms, 4 992 khung, tải 621 ms; [`bench.txt`](phase-4/bench.txt) | Đạt (máy tác giả) |
+| `soak_cmd`: 6 trường, đủ Đêm, seed/Đêm xoay vòng, tất định | AC66, AC68 | `phase4.test.ts` › AC66/AC68; [`soak.json`](../../soak.json) | Đạt |
+| Soak: 0 crash | AC67 | [`soak.json`](../../soak.json), [`soak.txt`](phase-4/soak.txt) | Đạt |
+| Soak: `mem_end_mb ≤ 1.2 × mem_start_mb` | AC67 | 54.9 → 75.3 MB = **1.37**; heap JS phẳng ~5 MB qua 30 Đêm: [`soak-trace-30-nights.txt`](phase-4/soak-trace-30-nights.txt); phân tích §6 | **Không đạt** (không rò rỉ heap; JIT khởi động) |
+| Bảng xếp hạng: tên hợp lệ, sắp xếp, bằng điểm ai trước đứng trên, giữ 10 | AC69 | `phase4.test.ts` › AC69; [`leaderboard-export.txt`](phase-4/leaderboard-export.txt) (12 lưu → 10, `AnhThu` trên `tie_first`) | Đạt |
+| `run_cmd --export-leaderboard out.json`, file trên đĩa | AC70 | `phase4.test.ts` › AC70 (lệnh thật + API server) | Đạt |
+| Nhập tên sau khi thua / Bình Minh, tên sai bị từ chối; màn Bảng xếp hạng | AC71 | [`06-lost-night-save-form-invalid-name.jpg`](phase-4/06-lost-night-save-form-invalid-name.jpg), [`04-leaderboard-screen.jpg`](phase-4/04-leaderboard-screen.jpg) | Đạt |
+| Đổi phím 9 hành động, báo trùng phím, khôi phục mặc định, lưu | AC72 | `phase4.test.ts` › AC72; [`05-settings-key-conflict.jpg`](phase-4/05-settings-key-conflict.jpg) | Đạt |
+| Phụ đề + mũi tên mép màn hình: Bóng Mực mới, đèn < 30 dầu (gió, 10 s cuối: cùng cơ chế) | AC73 | [`02-caption-shade-edge-arrow.jpg`](phase-4/02-caption-shade-edge-arrow.jpg), [`03-caption-low-fuel-lantern.jpg`](phase-4/03-caption-low-fuel-lantern.jpg) | Đạt |
+| Chữ UI ≥ 18 px ở mọi màn, chữ lớn ×1.25; giảm chuyển động | AC74 | [`font-audit.txt`](phase-4/font-audit.txt), [`07-menu-large-text-x1.25.jpg`](phase-4/07-menu-large-text-x1.25.jpg); giảm chuyển động kiểm tay (không rung, không chớp, Mây bán trong suốt) | Đạt |
+| Test Phase 1–3 vẫn đạt; đầu ra headless không đổi | AC75 | `npm test`; [`headless-unchanged.txt`](phase-4/headless-unchanged.txt) (dòng `end` 3 Đêm giống Phase 3, chạy lại giống từng byte) | Đạt |
+| Release v1.0.0 chạy được | — | `npm run package` → zip 31 file; giải nén ở thư mục khác: `node run.js` phục vụ game, `--export-leaderboard` chạy, CLI headless thắng Đêm 1 seed 7 (`end` 14400 won 1137) | Đạt (chờ đăng Release) |
+
+Kết quả `npm test` tại commit cuối Phase 4: **175/175 đạt** (8 file). `bench.json` và `soak.json` ở gốc repo.

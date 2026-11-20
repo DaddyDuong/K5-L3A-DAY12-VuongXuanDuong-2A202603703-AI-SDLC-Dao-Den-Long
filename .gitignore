@@ -6,3 +6,4 @@ dist-web/
 .env
 .env.*
 .claude/settings.local.json
+release/

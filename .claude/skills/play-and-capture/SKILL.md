@@ -11,7 +11,8 @@ description: Play each night (1–3) automatically with the bot, cross-check eve
    if a night fails, the rules or tuning likely broke winnability — investigate, do not tweak the bot to hide it.
 2. Cross-check through the graded path (must print `"state":"won"` with the same score/ticks as step 1):
    `node dist-headless/headless/cli.js --seed S --night N --ticks 21600 --inputs public/replays/nN-seedS-win.inputs.json --out /tmp/r.jsonl && tail -1 /tmp/r.jsonl`
-3. Build and serve the web game: `npm run build && npx vite preview --port 4173`
+3. Build and serve the web game: `npm run build && node dist-headless/app/run.js --no-open --port 4173` (= `run_cmd`,
+   also serves the leaderboard API; add `DDL_DATA_DIR=<tmp dir>` so test scores don't land in the real leaderboard).
 4. Open with Claude in Chrome:
    - whole run: `http://localhost:4173/?seed=7&replay=replays/n{night}-seed7-win.inputs.json&speed=40&fps=1`
      (`?seed=a,b,c` + `{seed}` in the URL if a night needs another seed),
@@ -30,5 +31,9 @@ description: Play each night (1–3) automatically with the bot, cross-check eve
 7. Headless evidence files (replay end lines, run-twice determinism, 21 600-tick timing, a sample JSONL):
    `scripts/proof-headless.sh docs/proof/phase-N/headless` — rerun after the final commit of the phase so `env.txt`
    names the tagged commit, and link the files from `docs/proof/README.md`.
+
+8. Phase 4 measurements (bench window, soak, leaderboard export, headless-unchanged check): `scripts/proof-phase4.sh`.
+   Accessibility evidence: poll the DOM for `#captions .cap.<kind>` / `.edge-arrow.show`, and check the smallest
+   `getComputedStyle(...).fontSize` of visible text on each screen (must be ≥ 18 px).
 
 `tests/autoplay.test.ts` already runs steps 1–2 for every night on each `npm test`.

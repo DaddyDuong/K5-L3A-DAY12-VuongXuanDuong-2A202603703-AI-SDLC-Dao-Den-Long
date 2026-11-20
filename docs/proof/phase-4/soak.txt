@@ -1,0 +1,3 @@
+$ node --expose-gc dist-headless/headless/soak.js --seed 7 --nights 10 --out soak.json
+{"nights":10,"crashes":0,"results":["lost","lost","lost","lost","lost","lost","lost","lost","lost","lost"],"mem_start_mb":54.9,"mem_end_mb":75.3,"duration_s":2.1}
+FAIL: crashes=0, mem_end/mem_start=1.372 (≤ 1.2)

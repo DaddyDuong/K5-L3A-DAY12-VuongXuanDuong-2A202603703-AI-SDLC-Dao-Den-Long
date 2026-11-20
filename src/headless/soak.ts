@@ -2,7 +2,8 @@
 // Soak test, Test Contract v1.3 (Ticket-04 §2): `soak_cmd --seed 7 --nights 10 --out soak.json`.
 // Runs the nights back to back in this one process (night 1 → 2 → 3 → 1 …), night i (from 0) with seed + i and
 // seeded random input, then reports crashes and RSS. Run with `node --expose-gc` so memory is sampled after a full GC
-// (P4-A15). Exit codes: 0 ok (the JSON says whether the thresholds are met), 1 bad arguments / IO error.
+// (P4-A15). `--trace 1` also prints RSS / JS heap after every night (evidence that memory is flat, not leaking).
+// Exit codes: 0 ok (the JSON says whether the thresholds are met), 1 bad arguments / IO error.
 import { writeFileSync } from "node:fs";
 import { SoakInput } from "../sim/bench.js";
 import { snapshot } from "../sim/snapshot.js";
@@ -11,9 +12,9 @@ import { WORLD } from "../sim/tuning.js";
 import type { World } from "../sim/types.js";
 import { createWorld } from "../sim/world.js";
 
-const USAGE = "usage: soak --seed <int> --nights <int ≥ 1> --out soak.json";
+const USAGE = "usage: soak --seed <int> --nights <int ≥ 1> --out soak.json [--trace 1]";
 
-function args(argv: string[]): { seed: number; nights: number; out: string } {
+function args(argv: string[]): { seed: number; nights: number; out: string; trace: boolean } {
   const o: Record<string, string> = {};
   for (let i = 0; i < argv.length; i += 2) {
     const k = argv[i]!;
@@ -28,7 +29,7 @@ function args(argv: string[]): { seed: number; nights: number; out: string } {
     return n;
   };
   if (!o.out) throw new Error("--out is required");
-  return { seed: int("seed", -2147483648), nights: int("nights", 1), out: o.out };
+  return { seed: int("seed", -2147483648), nights: int("nights", 1), out: o.out, trace: o.trace === "1" };
 }
 
 const gc = (globalThis as { gc?: () => void }).gc;
@@ -78,6 +79,11 @@ function main(): number {
       process.stderr.write(`night ${i} (night ${night}, seed ${seed}) crashed: ${(e as Error).stack ?? e}\n`);
     }
     world = null; // reset
+    if (o.trace) {
+      const rss = rssMb();
+      const heap = Math.round((process.memoryUsage().heapUsed / 2 ** 20) * 10) / 10;
+      process.stdout.write(`night ${String(i).padStart(2)} (night ${night}, seed ${seed}): ${results[i]!.padEnd(5)} rss ${rss} MB  heapUsed ${heap} MB\n`);
+    }
   }
   const memEnd = rssMb(); // after the last night is reset
   const report = {

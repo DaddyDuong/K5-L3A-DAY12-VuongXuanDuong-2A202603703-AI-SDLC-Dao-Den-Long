@@ -1,0 +1,33 @@
+$ node --expose-gc dist-headless/headless/soak.js --seed 7 --nights 30 --out /tmp/s30.json --trace 1
+night  0 (night 1, seed 7): lost  rss 73.7 MB  heapUsed 4.8 MB
+night  1 (night 2, seed 8): lost  rss 73.6 MB  heapUsed 4.7 MB
+night  2 (night 3, seed 9): lost  rss 77.1 MB  heapUsed 4.8 MB
+night  3 (night 1, seed 10): lost  rss 77.3 MB  heapUsed 4.8 MB
+night  4 (night 2, seed 11): lost  rss 77.3 MB  heapUsed 4.8 MB
+night  5 (night 3, seed 12): lost  rss 77.8 MB  heapUsed 5 MB
+night  6 (night 1, seed 13): lost  rss 78.5 MB  heapUsed 5 MB
+night  7 (night 2, seed 14): lost  rss 78.5 MB  heapUsed 5 MB
+night  8 (night 3, seed 15): lost  rss 78.8 MB  heapUsed 5 MB
+night  9 (night 1, seed 16): lost  rss 78.6 MB  heapUsed 5 MB
+night 10 (night 2, seed 17): lost  rss 78.6 MB  heapUsed 5 MB
+night 11 (night 3, seed 18): lost  rss 78.5 MB  heapUsed 5.1 MB
+night 12 (night 1, seed 19): lost  rss 78.5 MB  heapUsed 5 MB
+night 13 (night 2, seed 20): lost  rss 78.3 MB  heapUsed 5 MB
+night 14 (night 3, seed 21): lost  rss 78.6 MB  heapUsed 5.1 MB
+night 15 (night 1, seed 22): lost  rss 78.3 MB  heapUsed 5 MB
+night 16 (night 2, seed 23): lost  rss 78.3 MB  heapUsed 5 MB
+night 17 (night 3, seed 24): lost  rss 78 MB  heapUsed 5.1 MB
+night 18 (night 1, seed 25): lost  rss 78 MB  heapUsed 5.1 MB
+night 19 (night 2, seed 26): lost  rss 78 MB  heapUsed 5.1 MB
+night 20 (night 3, seed 27): lost  rss 78.1 MB  heapUsed 5 MB
+night 21 (night 1, seed 28): lost  rss 78.1 MB  heapUsed 5.1 MB
+night 22 (night 2, seed 29): lost  rss 77.7 MB  heapUsed 5.1 MB
+night 23 (night 3, seed 30): lost  rss 78 MB  heapUsed 5.1 MB
+night 24 (night 1, seed 31): lost  rss 78.1 MB  heapUsed 5.1 MB
+night 25 (night 2, seed 32): lost  rss 78.4 MB  heapUsed 5.1 MB
+night 26 (night 3, seed 33): lost  rss 78.3 MB  heapUsed 5.1 MB
+night 27 (night 1, seed 34): lost  rss 83.9 MB  heapUsed 5.1 MB
+night 28 (night 2, seed 35): lost  rss 83.9 MB  heapUsed 5 MB
+night 29 (night 3, seed 36): lost  rss 84.5 MB  heapUsed 5.1 MB
+{"nights":30,"crashes":0,"results":["lost","lost","lost","lost","lost","lost","lost","lost","lost","lost","lost","lost","lost","lost","lost","lost","lost","lost","lost","lost","lost","lost","lost","lost","lost","lost","lost","lost","lost","lost"],"mem_start_mb":55.2,"mem_end_mb":84.5,"duration_s":4.1}
+FAIL: crashes=0, mem_end/mem_start=1.531 (≤ 1.2)

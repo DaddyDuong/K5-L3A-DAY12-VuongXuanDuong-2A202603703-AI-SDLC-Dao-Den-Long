@@ -1,0 +1,11 @@
+# AC74: smallest computed font-size of any visible text node, per screen (Chrome 158, built game served by run_cmd).
+# Script: walk every text node under <body> that is not inside .hidden / display:none and take getComputedStyle().fontSize.
+# Measured 2026-11-20 on commit f33ba46 + CSS fixes (same index.html as the Phase 4 commit).
+menu      18px  P.sub "Ba đêm, ba hòn đảo."
+settings  18px  LABEL "Âm lượng"
+board     18px  TH "#"
+intro     18px  DIV.eyebrow "Đêm 1 / 3"
+hud       18px  SPAN.lbl "Đèn sáng"
+pause     18px  SPAN.lbl "Đèn sáng"
+# "Chữ lớn (×1.25)" on: html font-size 22.5px (menu .keys line 22.5px), off again: 18px.
+# Sizes are in rem (1rem = 18px), so they do not depend on the window size: the same at 1280×720.

@@ -33,12 +33,14 @@ Phương án đã cân nhắc:
 Hệ quả: cần Chrome hoặc Chromium (hoặc Edge/Brave) trên máy đo; đường dẫn tự dò, hoặc đặt `CHROME_PATH`. Không tìm thấy
 trình duyệt → thoát mã 1 kèm thông báo. RSS đo được trên Linux/macOS (`ps`), trên Windows ghi `null`.
 
-## 3. Chỗ ticket chưa nói rõ (P4-A1…A25)
+## 3. Chỗ ticket chưa nói rõ (P4-A1…A27)
 
 ### Benchmark (§1)
 - **P4-A1 Cửa sổ.** "Mở cửa sổ 1280×720, không toàn màn hình": `--app=<url> --window-size=1280,720
   --force-device-scale-factor=1`; canvas luôn vẽ đúng **1280×720 px** (pixel ratio 1) dù trình quản lý cửa sổ có
   trừ thanh tiêu đề, nên khối lượng GPU đúng như cửa sổ 1280×720. Kích thước thật của vùng trang được ghi vào bằng chứng.
+  Đã biết: Chrome trên Wayland bỏ qua `--force-device-scale-factor` (máy đo có scale 1.75): cửa sổ vẫn 1280×720 CSS
+  px và canvas vẫn vẽ bộ đệm 1280×720 (renderer đặt pixel ratio 1), compositor phóng to khi hiển thị.
 - **P4-A2 Vsync.** "tắt vsync nếu engine cho phép": Chromium cho phép bằng `--disable-gpu-vsync
   --disable-frame-rate-limit` → `vsync_off: true`. Bằng chứng: FPS đo được vượt tần số quét màn hình.
   Thêm `--disable-background-timer-throttling --disable-renderer-backgrounding --disable-backgrounding-occluded-windows`
@@ -80,7 +82,8 @@ trình duyệt → thoát mã 1 kèm thông báo. RSS đo được trên Linux/m
 - **P4-A15 Bộ nhớ.** RSS (`process.memoryUsage().rss`) đo sau một lần GC đầy đủ (`soak_cmd` chạy Node với
   `--expose-gc`): `mem_start_mb` sau khi tạo xong thế giới Đêm đầu; `mem_end_mb` sau khi Đêm cuối kết thúc và thế giới
   được bỏ đi ("reset xong"). GC trước khi đo để rác chưa dọn không bị tính là rò rỉ; nếu thiếu `--expose-gc` vẫn chạy.
-  MB = 2²⁰ byte, làm tròn 0.1. `duration_s` = thời gian thật, làm tròn 0.1.
+  MB = 2²⁰ byte, làm tròn 0.1. `duration_s` = thời gian thật, làm tròn 0.1. Không "khởi động nóng" trước khi đo
+  `mem_start_mb` (xem §6: chọn báo số đo đúng định nghĩa, kể cả khi nó không đạt).
 
 ### Bảng xếp hạng (§3)
 - **P4-A16 "Lưu trên đĩa cục bộ".** File `leaderboard.json` trong thư mục dữ liệu người dùng: Linux
@@ -144,3 +147,50 @@ trình duyệt → thoát mã 1 kèm thông báo. RSS đo được trên Linux/m
 1. Soak "Đêm thứ i dùng seed `7 + i`": i bắt đầu từ 0 hay 1? (Đang chọn 0, P4-A11.)
 2. Bench: Bóng Mực có được chuyển `chase` khi lại gần Mây không? (Đang giữ `wander`, P4-A6.)
 3. Bản web: chấp nhận `bench_cmd` cần Chrome/Chromium có sẵn trên máy chấm không?
+4. Soak: phần tăng RSS một lần do JIT của V8 trong Đêm đầu có tính là "rò rỉ" theo ngưỡng 1.2 không? Có được đo
+   `mem_start_mb` sau một Đêm khởi động không? (Đang báo số đúng định nghĩa: 1.37, §6.)
+
+## 6. Kết quả đo (máy tác giả) và đánh giá
+
+Môi trường: [`docs/proof/phase-4/env.txt`](../proof/phase-4/env.txt) — Ryzen 7 7840HS, Radeon 780M (iGPU), 27 GB RAM,
+Linux (Wayland), Node 24, Chrome 158. Tái tạo: `scripts/proof-phase4.sh`.
+
+### Benchmark — [`bench.json`](../../bench.json): **đạt**
+
+| Trường | Đo được | Ngưỡng |
+|---|---|---|
+| `avg_fps` | 166.4 | ≥ 60 |
+| `p1_low_fps` | 104.9 | ≥ 30 |
+| `frame_ms_p95` | 7.5 ms | — |
+| `frames` | 4 992 (30 s, sau 3 s khởi động) | — |
+| `load_ms` | 621 | ≤ 10 000 |
+| `peak_mem_mb` | 1 589 (Node + mọi tiến trình Chrome, cận trên) | — |
+
+Lần đo trước trên cùng máy: 175.8 / 108.5 / 7.0 ms — sai khác vài % giữa các lần.
+
+### Soak — [`soak.json`](../../soak.json): `crashes = 0` **đạt**; bộ nhớ **không đạt** theo đúng định nghĩa
+
+`mem_start_mb` 54.9 → `mem_end_mb` 75.3, tỷ lệ **1.37** (ngưỡng ≤ 1.2). Phân tích
+([`soak-trace-30-nights.txt`](../proof/phase-4/soak-trace-30-nights.txt), 30 Đêm, đo sau GC đầy đủ):
+
+- **Heap JS** (`heapUsed`) 4.7–5.1 MB suốt 30 Đêm: không có đối tượng nào bị giữ lại giữa các Đêm.
+- **RSS** nhảy ~17–19 MB trong Đêm đầu (55 → 72–74), rồi đi ngang theo từng bậc: 74–77 MB suốt Đêm 3…28, thỉnh
+  thoảng một bậc nhỏ vài MB rồi phẳng lại (lần chạy 33 Đêm: 76 → 84 MB quanh Đêm 24–26, rồi 84 MB tới Đêm 32). Rò rỉ
+  thật sẽ tăng đều theo số Đêm; ở đây trung bình < 0.3 MB/Đêm sau Đêm 2 và có trần.
+- Phần nhảy ở Đêm đầu là V8 biên dịch JIT (Maglev/TurboFan) mã nóng của `step()` và nạp trang mã của chính binary
+  Node lần đầu: xảy ra một lần mỗi tiến trình, không phụ thuộc số Đêm. Các bậc nhỏ về sau nằm ngoài heap JS (mã tối ưu
+  lại, vùng nhớ của bộ cấp phát); chưa xác định chính xác từng bậc, nhưng heap JS phẳng loại trừ việc game giữ lại
+  dữ liệu giữa các Đêm.
+
+Quyết định (người dùng để agent tự chọn): **giữ số đo đúng định nghĩa của ticket** — `mem_start_mb` đo "sau khi tải
+xong Đêm 1", không chạy khởi động nóng trước để kéo tỷ lệ xuống dưới 1.2. Lý do: một bước "làm nóng" chỉ để qua
+ngưỡng là đổi định nghĩa phép đo; báo con số thật kèm phân tích minh bạch hơn. Chấm theo ngưỡng thì AC67 phần bộ nhớ
+**không đạt**; đây là điểm cần hỏi trợ giảng (§5 câu 4).
+
+### Bảng xếp hạng, trợ năng, đầu ra headless
+
+- Xuất bảng ([`leaderboard-export.txt`](../proof/phase-4/leaderboard-export.txt)): 12 điểm lưu → giữ 10, điểm giảm dần,
+  `AnhThu` (lưu trước) đứng trên `tie_first` cùng 1320 điểm; hai điểm thấp nhất bị loại.
+- Cỡ chữ nhỏ nhất trên mọi màn = 18 px ([`font-audit.txt`](../proof/phase-4/font-audit.txt)); chữ lớn 22.5 px.
+- Đầu ra headless không đổi: replay 3 Đêm của Phase 3 cho đúng các dòng `end` cũ, chạy lại giống từng byte
+  ([`headless-unchanged.txt`](../proof/phase-4/headless-unchanged.txt)).
