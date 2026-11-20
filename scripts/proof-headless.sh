@@ -15,8 +15,10 @@ mkdir -p "$OUT"
 
 npm run build:headless --silent >/dev/null
 
+# check the tree before writing any file here (the redirect below would otherwise make env.txt itself "dirty")
+DIRTY=$(git diff --quiet && echo "" || echo " (+ uncommitted changes)")
 {
-  echo "# git: $(git rev-parse --short HEAD)$(git diff --quiet || echo ' (+ uncommitted changes)')  node: $(node -v)"
+  echo "# git: $(git rev-parse --short HEAD)$DIRTY  node: $(node -v)"
   echo "# CPU: $(grep -m1 'model name' /proc/cpuinfo 2>/dev/null | cut -d: -f2- | sed 's/^ //')"
 } > "$OUT/env.txt"
 
