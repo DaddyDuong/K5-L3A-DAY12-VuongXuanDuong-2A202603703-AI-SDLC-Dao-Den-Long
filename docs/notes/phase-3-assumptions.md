@@ -111,4 +111,6 @@ Thắp lại chỉ tốn 5 đom đóm cho 100 dầu, còn châm dầu tốn 1 đ
 đã tắt (tối đa giá − 1, đèn giữ phần đã nạp), để không mang ≥ 5 con (Gió Lạc) và bị đánh thì rơi ít hơn; (3) trong 69 s
 cuối, làm cho đủ `ceil(0.6 n) + 1` đèn "an toàn tới bình minh" (`fuel ≥ thời gian còn + 31`, tức vẫn ≥ 30 lúc bình
 minh nên không bao giờ bị hút) bằng việc rẻ nhất ở gần: thắp lại, thắp, hoặc châm dầu. Tỏa Sáng khi có ≥ 3 Bóng Mực
-trong tầm. Kết quả quét seed ghi ở `docs/notes/ai-log.md`.
+trong tầm. Quét seed 1–24: Đêm 1 thắng 18/24, Đêm 2 chỉ 2/24 (seed 11, 14), Đêm 3 thắng seed 1 (chưa quét đủ).
+**Chưa đạt:** bot Đêm 2–3 yếu (mất thời gian né Bóng Mực, Gió Lạc cướp, đom đóm khan); `autoplay.test.ts` chỉ dùng
+seed đã biết thắng để chứng minh *thắng được*, không phải tỉ lệ thắng.
