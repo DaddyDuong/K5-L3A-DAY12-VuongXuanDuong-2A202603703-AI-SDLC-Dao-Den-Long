@@ -1,0 +1,8 @@
+node_modules/
+dist-headless/
+dist-web/
+*.jsonl
+!docs/proof/**/*.jsonl
+.env
+.env.*
+.claude/settings.local.json
