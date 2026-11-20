@@ -5,7 +5,16 @@
 Game 3D góc nhìn thứ ba: Mây, người giữ đèn nhỏ tuổi, gom đom đóm để thắp lại 5 Đèn Lồng Lớn và xua Bóng Mực trong sương đen.
 TypeScript + Three.js (bản web) và một chế độ headless chạy bằng Node theo **Test Contract v1.0**.
 
-> Trạng thái: **khung dự án** (di chuyển, nhảy, camera, đếm giờ, headless đúng contract). Luật Phase 1 (nhặt, nạp đèn, Bóng Mực, tỏa sáng) đang làm.
+> Trạng thái: **Phase 1 đủ luật**: nhặt đom đóm, nạp và thắp 5 đèn, Bóng Mực đuổi/sợ đèn, tỏa sáng, thắng/thua, điểm, chơi lại.
+
+## Luật chơi tóm tắt
+
+- Đi gần đom đóm để **tự nhặt** (mang tối đa 5). Đứng cạnh đèn và bấm **E** để nạp; mỗi đèn cần 5 con.
+- **Bóng Mực** đuổi theo (chậm hơn bạn). Bị chạm: mất 1 lửa, rơi một nửa số đom đóm đang mang, bất tử 1.5 s. Chúng **không vào được vùng 5 m quanh đèn đã thắp**.
+- **F** (tốn 1 đom đóm): làm choáng và đẩy lùi Bóng Mực trong 6 m.
+- Thắp đủ 5 đèn → **thắng**. Hết 3 lửa hoặc hết 300 s → **thua**.
+
+Chi tiết luật và giả định: [`docs/notes/phase-1-assumptions.md`](docs/notes/phase-1-assumptions.md).
 
 ## Cài đặt và chạy (3 lệnh)
 
@@ -32,7 +41,14 @@ Khi phát triển: `npm run dev`.
 
 ## Cách tính điểm
 
-Theo `score` trong [`game.contract.json`](game.contract.json): mỗi đom đóm nhặt `per_mote`, mỗi đèn thắp `per_lantern`, mỗi Bóng Mực bị choáng `per_stun`; khi thắng cộng thêm `per_second_left` × số giây còn lại và `per_flame_left` × số lửa còn lại. _(Sẽ chốt trong ghi chép giả định Phase 1.)_
+| Sự kiện | Điểm |
+|---|---|
+| Nhặt 1 đom đóm | +10 |
+| Thắp 1 đèn | +100 |
+| Làm choáng 1 Bóng Mực (chưa bị choáng) | +25 |
+| Thắng | +2 × số giây còn lại (làm tròn xuống) + 50 × số lửa còn lại |
+
+Không bao giờ trừ điểm. Các số khớp với `score` trong [`game.contract.json`](game.contract.json).
 
 ## Chế độ headless (Test Contract v1.0)
 
