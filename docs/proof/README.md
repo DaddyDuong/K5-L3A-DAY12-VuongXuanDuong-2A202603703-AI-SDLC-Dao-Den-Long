@@ -125,13 +125,13 @@ Thay đổi phá vỡ tương thích: [`CHANGELOG.md`](../../CHANGELOG.md).
 | Scenario v1.2 (`fuel`, `ever_lit`, `successful_lights`, `target_lantern_id`, `drain`); sai → mã 2 | AC57 | `phase3.test.ts` › AC57 | Đạt |
 | Thắp hết đèn không kết thúc Đêm, không còn `all_lit` | AC58 | `rules.test.ts` › AC16, AC17 | Đạt |
 | Test Phase 1–2 không bị thay vẫn đạt | — | `rules`, `headless`, `phase2`, `inputs` | Đạt |
-| Mỗi Đêm thắng được theo luật mới (bot qua sim thật, inputs chạy qua CLI ra cùng kết quả) | AC59 | `autoplay.test.ts` (Đêm 1: seed 1/3/7, Đêm 2: 11/14, Đêm 3: 1); [`headless/replays-end.txt`](phase-3/headless/replays-end.txt) | Đạt (bot yếu ở Đêm 2–3: **Chưa đạt** về tỉ lệ thắng, xem `phase-3-assumptions.md` §6) |
-| Tất định + một Đêm 21 600 tick ≤ 30 s | AC43 | [`determinism.txt`](phase-3/headless/determinism.txt), [`timing.txt`](phase-3/headless/timing.txt) (0.8–1.9 s, chạy đủ 21 600 tick) | Đạt |
-| Web: thanh dầu, gợi ý "Châm dầu", HUD `mang / sức chứa` | AC60 | [`01-fuel-bar-refuel-prompt.jpg`](phase-3/01-fuel-bar-refuel-prompt.jpg) | Đạt |
+| Mỗi Đêm thắng được theo luật mới (bot qua sim thật, inputs chạy qua CLI ra cùng kết quả) | AC59 | `autoplay.test.ts` (seed 1, 7 × 3 Đêm); [`headless/replays-end.txt`](phase-3/headless/replays-end.txt) (seed 7: 1137 / 1391 / 1353 điểm); quét seed 1–48: 48/48 · 48/48 · 45/48 (`phase-3-assumptions.md` §6) | Đạt |
+| Tất định + một Đêm 21 600 tick ≤ 30 s | AC43 | [`determinism.txt`](phase-3/headless/determinism.txt), [`timing.txt`](phase-3/headless/timing.txt) (0.5–1.4 s, chạy đủ 21 600 tick) | Đạt |
+| Web: thanh dầu, gợi ý "Châm dầu", HUD `mang / sức chứa` | AC60 | [`01-fuel-bar-refuel-prompt.jpg`](phase-3/01-fuel-bar-refuel-prompt.jpg) (chụp từ replay của bot trước khi viết lại, commit `526824a`) | Đạt |
 | Web: đèn tắt xẹp 20% + vết rách (phân biệt không cần màu) | AC60 | [`03-night-start-unlit-lantern.jpg`](phase-3/03-night-start-unlit-lantern.jpg), [`03b-…-zoom.png`](phase-3/03b-unlit-lantern-squashed-torn-zoom.png) | Đạt |
-| Web: chế độ mù màu (viền Bóng Mực `#00B3FF`), màn kết quả thưởng bình minh; điểm 1377 = `end` headless Đêm 1 seed 7 | AC60 | [`02-result-night1-dawn-survived-colorblind.jpg`](phase-3/02-result-night1-dawn-survived-colorblind.jpg) | Đạt |
-| Web: nhấp nháy 1 Hz khi dầu < 30; ⚠ + màu trắng cho cảnh báo ở chế độ mù màu | AC60 | Code `world3d.ts` / `index.html`; chưa có ảnh (ảnh tĩnh không thể hiện nhấp nháy) | Chưa có bằng chứng ảnh |
+| Web: màn kết quả thưởng bình minh; điểm 1137 = `end` headless Đêm 1 seed 7 | AC60 | [`02-result-night1-dawn-survived-colorblind.jpg`](phase-3/02-result-night1-dawn-survived-colorblind.jpg) | Đạt |
+| Web: dầu < 30 → đèn và thanh dầu nhấp nháy 1 Hz (thanh đỏ), mất vòng an toàn, Bóng Mực tới đánh | AC60 | Hai khung cách 0.5 s: [`04a` tối](phase-3/04a-low-fuel-blink-dim.png) / [`04b` sáng](phase-3/04b-low-fuel-blink-bright.png); toàn cảnh [`04`](phase-3/04-low-fuel-lantern-under-attack.jpg). Inputs: [`lowfuel-blink-n1-seed7.inputs.json`](phase-3/lowfuel-blink-n1-seed7.inputs.json), tạo lại bằng `node scripts/make-lowfuel-evidence.mjs` (dầu < 30 từ tick 5580) | Đạt |
+| Web: chế độ mù màu — cảnh báo trắng `#FFFFFF` + ⚠, viền/mắt Bóng Mực `#00B3FF` | AC60 | [`05-colorblind-lost-warning-icon.jpg`](phase-3/05-colorblind-lost-warning-icon.jpg) (⚠ trên tiêu đề thua), [`05b-…`](phase-3/05b-colorblind-white-fuel-warning-blue-shade-rims.jpg) (thanh dầu thấp màu trắng, viền Bóng Mực xanh) | Đạt |
 
-Kết quả `npm test` tại commit cuối Phase 3: **154/154 đạt**. Replay Phase 3: `?seed=7,11,1&replay=replays/n{night}-seed{seed}-win…`
-dùng seed theo Đêm (`n1-seed7`, `n2-seed11`, `n3-seed1`). Các replay Phase 2 (`n2-seed7`, `n3-seed7`) bị bỏ vì thua theo
-luật mới; xem ở tag `phase-2`.
+Kết quả `npm test` tại commit cuối Phase 3: **154/154 đạt**. Replay Phase 3: `?seed=7&replay=replays/n{night}-seed7-win.inputs.json`
+(cả 3 Đêm → Bình Minh). Replay Phase 2 bị thay vì luật mới; xem ở tag `phase-2`.
