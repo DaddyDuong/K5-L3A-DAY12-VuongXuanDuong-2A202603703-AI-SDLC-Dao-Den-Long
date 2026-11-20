@@ -57,7 +57,7 @@ Tự kiểm bằng lệnh; cột cuối là trạng thái lúc viết.
 | 9 | Web: HUD đầy đủ, chuỗi 3 Đêm, tạm dừng, cài đặt, âm thanh | ảnh `docs/proof/phase-2/01–16`; âm thanh cần người nghe thử | Đạt (âm thanh: người dùng xác nhận) |
 | 10 | Giả định ghi rõ, câu hỏi mở cho trợ giảng | `phase-2-assumptions.md` (A1–A33, §5) | Đạt |
 | 11 | Harness cập nhật trong git history | `git log -- CLAUDE.md .claude/` | Đạt |
-| 12 | Nhật ký token/chi phí Phase 2 | `docs/notes/ai-log.md` | **Chưa: cần số `/cost`** |
+| 12 | Nhật ký token/chi phí Phase 2 | `docs/notes/ai-log.md` | Đạt ($22.45) |
 | 13 | Clone sạch ở tag chạy được theo README | `git clone <repo> x && cd x && git checkout phase-2 && npm ci && npm test` | Kiểm lại sau khi tag |
 | 14 | Tag `phase-2` trên GitHub | `git ls-remote --tags origin phase-2` | **Chưa** |
 

@@ -53,11 +53,18 @@ Cần cải thiện ở Phase 2:
 
 ## Token và chi phí — Phase 2
 
-_Chờ số liệu `/cost` cuối Phase 2 (người dùng chạy và dán vào)._ Phiên Phase 2 có 1 lần tự nén ngữ cảnh (compact) giữa chừng.
+Nguồn: `/cost` của Claude Code ở cuối Phase 2 (một phiên cho cả phase, có 1 lần tự nén ngữ cảnh giữa chừng; `/cost` không tách theo từng việc nên các dòng ở bảng trên được gộp).
 
 | Model | Input | Output | Cache read | Cache write | Chi phí |
 |---|---:|---:|---:|---:|---:|
-| claude-opus-5-5 | | | | | |
+| claude-opus-5-5 (agent chính) | 6.7k | 346.2k | 45.6M | 795.8k | $22.44 |
+| claude-haiku-5-5 (việc phụ, gồm subagent đọc web) | 8.0k | 2.3k | 10.2k | 6.2k | ~$0.003 |
+| **Tổng** | | | | | **≈ $22.45** |
+
+- Thời gian API 55 phút 17 giây / thời gian thực 2 giờ 27 phút 40 giây; 216 request, 98% input lấy từ prompt cache (1 lần miss, 45.1k token cache lại).
+- `/cost` báo 3789 dòng thêm / 668 dòng xóa (vẫn thấp hơn thực tế vì một phần file ghi qua shell).
+- So với Phase 1 ($7.40): **gấp ~3 lần**. Phạm vi lớn hơn nhiều (sim viết lại, 3 bản đồ, bot Đêm 3, web viết lại, 16 ảnh), nhưng phần lớn chi phí vẫn là **đọc lại ngữ cảnh** (45.6M cache read ≈ 3.5× Phase 1) và **output** (346k ≈ 2.8×).
+- Lũy kế Phase 1 + 2: **≈ $29.85**.
 
 Cách đã tiết kiệm ở Phase 2:
 - Chép ticket một lần vào `docs/notes/ticket-02.md`; về sau tra file thay vì mở lại board (ảnh tốn token).
@@ -67,3 +74,7 @@ Cách đã tiết kiệm ở Phase 2:
 
 Chưa tốt:
 - Thử nghiệm "tỏa sáng khi bị vây" tốn ~4 phút chạy đánh giá mà không giúp được; nên suy luận kinh tế đom đóm (cung ≈ 110, cần 70) trước khi thử.
+- Ngữ cảnh kéo dài suốt 2.5 giờ trong một phiên: cache read 45.6M là khoản lớn nhất. Phase 3 nên bắt đầu phiên mới
+  (khôi phục ngữ cảnh từ `CLAUDE.md`, `docs/notes/instructor-guide.md`, `phase-2-assumptions.md`).
+- Đo/ghi số liệu hiệu năng một lần cho đúng (đã phải sửa lại số "< 0.5 s"); 2 lần tính sai kỳ vọng test tốn thêm vòng sửa.
+- Ảnh chụp màn hình qua Chrome bị bóp khung hình: nhiều lần chụp lại để bắt đúng khoảnh khắc. Nên dùng hook DOM (poll + pause) ngay từ đầu.
