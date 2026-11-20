@@ -9,6 +9,7 @@
 - Typecheck: `npm run typecheck`
 - Headless: `npm run headless -- --seed 1 --night 1 --ticks 600 --out out.jsonl [--inputs f.json] [--scenario f.json]`
 - Play: `npm run dev` (or `npm start` after build)
+- Bot win + replay evidence: see skill `play-and-capture` (`npm run autoplay -- --seed 7`)
 
 ## Layout
 - `src/sim/` pure game logic, shared by web + headless. `step(world, input)` = exactly one 1/60 s tick.

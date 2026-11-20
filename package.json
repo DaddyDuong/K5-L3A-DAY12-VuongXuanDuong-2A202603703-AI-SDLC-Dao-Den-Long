@@ -15,7 +15,8 @@
     "start": "vite preview --port 4173 --open",
     "headless": "node dist-headless/headless/cli.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "npm run build:headless && vitest run"
+    "test": "npm run build:headless && vitest run",
+    "autoplay": "npm run build:headless && node dist-headless/tools/autoplay-cli.js"
   },
   "dependencies": {
     "three": "^0.187.0"

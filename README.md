@@ -69,11 +69,21 @@ npm test           # build headless + vitest (unit + chạy CLI end-to-end + tí
 
 CI chạy cùng bộ test mỗi lần push (`.github/workflows/ci.yml`).
 
+### Bot tự chơi và phát lại
+
+```bash
+npm run autoplay -- --seed 7 --out public/replays/seed7-win.inputs.json   # bot tìm chuỗi input thắng
+npm run build && npm start                                                 # rồi mở:
+# http://localhost:4173/?seed=7&replay=replays/seed7-win.inputs.json&speed=2
+```
+
+File inputs đúng định dạng Test Contract, nên cũng chạy được bằng lệnh headless ở trên.
+
 ## Tài liệu
 
 - Giả định, nhật ký AI, retro: [`docs/notes/`](docs/notes/)
 - Bằng chứng từng phase: [`docs/proof/`](docs/proof/)
-- Harness AI: [`CLAUDE.md`](CLAUDE.md), [`.claude/settings.json`](.claude/settings.json) (hook Stop chặn kết thúc khi test đỏ)
+- Harness AI: [`CLAUDE.md`](CLAUDE.md), [`.claude/settings.json`](.claude/settings.json) (hook Stop chặn kết thúc khi test đỏ), skill [`play-and-capture`](.claude/skills/play-and-capture/SKILL.md) (bot chơi + phát lại + chụp bằng chứng)
 - Đề bài lab: [`docs/lab/`](docs/lab/)
 
 ## Sáng tạo của tôi

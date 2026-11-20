@@ -11,5 +11,5 @@
     "rootDir": "src",
     "outDir": "dist-headless"
   },
-  "include": ["src/sim", "src/headless"]
+  "include": ["src/sim", "src/headless", "src/tools"]
 }

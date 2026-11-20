@@ -20,8 +20,9 @@ Chạy lại toàn bộ: `npm ci && npm test` ở tag tương ứng. Mỗi AC (�
 | Tỏa sáng: tốn đom đóm, choáng + đẩy, hồi chiêu, choáng hết hạn | AC11–AC14 | `rules.test.ts` › R8/R9 | Đạt |
 | Thua `dawn` khi hết giờ | AC19 | `headless.test.ts` › tick model | Đạt |
 | Tất định byte-identical trên một đêm đầy đủ luật | AC20 | `rules.test.ts` › AC20 | Đạt |
-| Bản 3D chơi được: HUD, thua, chơi lại (R) | AC21 | Kiểm tra tay trên Chrome: đứng yên ~14 s → bị bắt 3 lần → màn "Mây đã hết lửa", R chơi lại; không lỗi console | Đạt một phần |
+| Bản 3D: thua và chơi lại (R) | AC21 | Kiểm tra trên Chrome: đứng yên ~14 s → bị bắt 3 lần → màn "Mây đã hết lửa", R chơi lại; không lỗi console | Đạt |
 | Phong cách PRD-0: Mây đội nón lá treo đèn lồng nhỏ; ấm = an toàn, tím = nguy hiểm; đèn tìm thấy được từ xa | AC21 | Trước: [`phase-1/visual-before.jpg`](phase-1/visual-before.jpg) (nhân vật trông như cây nấm, cột đèn chưa thắp gần như vô hình). Sau: [`phase-1/visual-after.jpg`](phase-1/visual-after.jpg), [`phase-1/visual-after-character.png`](phase-1/visual-after-character.png) | Đạt |
-| Bản 3D: nhặt → nạp → thắp đèn → thắng | AC21 | Logic đã có test headless; **chưa có ảnh/clip chơi tay đến khi thắng** | Chưa có bằng chứng hình ảnh |
+| Đêm 1 thắng được từ đầu đến cuối (bot chơi qua sim thật; inputs của bot chạy qua CLI ra cùng kết quả) | AC21 | `autoplay.test.ts` (seed 1, 7, 42) | Đạt |
+| Bản 3D: nhặt → nạp → thắp đèn → thắng, chơi lại | AC21 | Phát lại inputs của bot trên web (`?seed=7&replay=replays/seed7-win.inputs.json&speed=2`): [`start`](phase-1/replay-seed7-1-start.jpg) → [`đèn đầu tiên`](phase-1/replay-seed7-2-first-lantern.jpg) → [`Bóng Mực đuổi`](phase-1/replay-seed7-3-shades-chasing.jpg) → [`tại đèn`](phase-1/replay-seed7-4-at-lantern.jpg) → [`thắng 1517 điểm`](phase-1/replay-seed7-5-won.jpg). Điểm trên màn hình = dòng `end` headless: [`replay-seed7-headless-end.txt`](phase-1/replay-seed7-headless-end.txt) | Đạt |
 
-Kết quả `npm test` tại commit cuối Phase 1: **58/58 đạt** (3 file test + contract).
+Kết quả `npm test` tại commit cuối Phase 1: **61/61 đạt** (3 file test + contract).

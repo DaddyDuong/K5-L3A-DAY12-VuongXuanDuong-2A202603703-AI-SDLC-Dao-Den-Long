@@ -4,6 +4,16 @@ import { distXZ, step } from "../sim/step.js";
 import { TUNING, WORLD } from "../sim/tuning.js";
 import { DEFAULT_INPUT, type InputState, type SimEvent, type World } from "../sim/types.js";
 import { createWorld, timeLeftS } from "../sim/world.js";
+import { InputTimeline, parseInputs, type InputFrame } from "../sim/inputs.js";
+
+// Replay mode: ?seed=N&replay=<inputs.json>[&speed=K] plays a contract inputs file through the same step().
+const params = new URLSearchParams(location.search);
+const seedParam = params.get("seed");
+const replayUrl = params.get("replay");
+const speed = Math.max(0.25, Number(params.get("speed") ?? "1") || 1);
+let replayFrames: InputFrame[] | null = null;
+let timeline: InputTimeline | null = null;
+let endReason = "";
 
 const COLORS = { warm: 0xffa040, danger: 0x3a1450, island: 0x2d3b2a, sky: 0x0b0614 };
 
@@ -156,11 +166,26 @@ function readInput(): InputState {
 let world: World;
 let seed = 0;
 function restart() {
-  seed = (Date.now() & 0x7fffffff) >>> 0;
+  seed = seedParam !== null ? Number(seedParam) : (Date.now() & 0x7fffffff) >>> 0;
   world = createWorld(seed);
   buildLanterns(world);
+  timeline = replayFrames ? new InputTimeline(replayFrames) : null;
+  endReason = "";
 }
 restart();
+if (replayUrl) {
+  fetch(replayUrl)
+    .then((r) => r.json())
+    .then((j) => { replayFrames = parseInputs(j); restart(); })
+    .catch((e) => console.error("replay load failed", e));
+}
+
+function nextInput(): InputState {
+  if (!timeline) return readInput();
+  const input = timeline.at(world.steps);
+  camYawDeg = input.cam_yaw_deg;
+  return input;
+}
 
 const hud = document.getElementById("hud")!;
 const overlay = document.getElementById("overlay")!;
@@ -169,9 +194,9 @@ let acc = 0;
 let last = performance.now();
 
 function frame(now: number) {
-  acc += Math.min(0.25, (now - last) / 1000);
+  acc += Math.min(0.25, (now - last) / 1000) * speed;
   last = now;
-  while (acc >= DT) { onEvents(step(world, readInput()), now / 1000); acc -= DT; }
+  while (acc >= DT) { onEvents(step(world, nextInput()), now / 1000); acc -= DT; }
   render(now / 1000);
   requestAnimationFrame(frame);
 }
@@ -189,7 +214,6 @@ const REASONS: Record<string, string> = {
   no_flames: "Mây đã hết lửa.",
   dawn: "Trời đã sáng mà đảo vẫn chưa sáng đèn.",
 };
-let endReason = "";
 
 function render(t: number) {
   const w = world;
@@ -250,7 +274,7 @@ function render(t: number) {
     `Lửa: ${"♥".repeat(w.player.flames)} · Đom đóm: ${w.player.carried}/${TUNING.carry_capacity}<br>` +
     `Đèn: ${lit}/${w.lanterns.length} · Tỏa sáng (F): ${pulseReady ? "sẵn sàng" : "chưa"}` +
     (nearLantern && w.player.carried > 0 ? `<br><b>Nhấn E để nạp đèn</b>` : "") +
-    `<br><small>seed ${seed}</small>`;
+    `<br><small>seed ${seed}${timeline ? ` · REPLAY ×${speed}` : ""}</small>`;
   overlay.innerHTML = w.state === "playing" ? "" :
     `<h1>${w.state === "won" ? "Đảo đã sáng lại!" : "Bóng tối thắng đêm nay"}</h1>` +
     `<div>${endReason}</div><div>Điểm: ${w.score} · Nhấn R để chơi lại</div>`;
