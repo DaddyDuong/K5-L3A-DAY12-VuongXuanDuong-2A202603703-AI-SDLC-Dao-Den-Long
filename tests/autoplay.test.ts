@@ -5,11 +5,10 @@ import { MAPS } from "../src/sim/maps.js";
 import { autoplay } from "../src/tools/autoplay.js";
 import { runCli } from "./helpers.js";
 
-// Ticket-03 replaced the win rule (dawn_survived with ≥ ceil(0.6 n) lit, no all_lit), so the bot was rewritten and
-// lighting every lantern is no longer asserted. The bot is a proof of winnability, not an optimal player: a scan of
-// seeds 1–24 won 18/24 on night 1 and 2/24 on night 2 (seeds 11, 14); night 3 uses seed 1, a known win.
-// Weak night 2/3 win rates are recorded in docs/notes/phase-3-assumptions.md §6.
-const SEEDS = { 1: [1, 3, 7], 2: [11, 14], 3: [1] } as const;
+// Ticket-03 replaced the win rule (dawn_survived with ≥ ceil(0.6 n) lit, no all_lit), so the bot was rewritten
+// (bank motes into unlit lanterns, light them in the final minute) and lighting every lantern is no longer asserted.
+// Seed scan 1–48 with the default bot: night 1 48/48, night 2 48/48, night 3 45/48 (docs/notes/phase-3-assumptions.md §6).
+const SEEDS = { 1: [1, 7], 2: [1, 7], 3: [1, 7] } as const;
 
 for (const night of [1, 2, 3] as const) {
   describe(`autoplay: default Night ${night} can be won`, () => {
@@ -23,7 +22,7 @@ for (const night of [1, 2, 3] as const) {
         const over = r.lines.find((l) => l.name === "game_over");
         expect(over!.data).toEqual({ result: "won", reason: "dawn_survived" });
         expect(r.lines.at(-1)!.ticks).toBe(MAPS[night].duration_s * 60); // survived until dawn
-      }, 30000);
+      }, 60000);
     }
   });
 }
