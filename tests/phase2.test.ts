@@ -224,6 +224,18 @@ describe("AC34 dash", () => {
     expect(ys[0]).toBeGreaterThan(0.5);
     expect(snap(r, 21).player.pos[1]).toBeLessThan(ys[0]);
   });
+  // Instructor slide CP2 "Lỗi thường gặp": the player is NOT invulnerable while dashing.
+  it("dashing through a shade still gets hit (no invulnerability while dashing)", () => {
+    const r = run(12, scn({ player: { flames: 3, carried: 2 }, shades: [{ id: "S1", pos: [2, 1, 0] }] }), {
+      frames: [{ tick: 0, move: [1, 0], dash: true }],
+    });
+    const hit = events(r, "player_hit");
+    expect(hit).toHaveLength(1);
+    expect(hit[0]!.data).toEqual({ by: "shade", flames: 2, dropped: 1 });
+    expect(events(r, "dash")[0]!.tick).toBe(1);
+    expect(hit[0]!.tick).toBeLessThanOrEqual(12); // still inside the 12-tick dash
+    expect(snap(r, hit[0]!.tick - 1).player.invuln).toBe(false);
+  });
 });
 
 describe("AC35 falling off the island", () => {
@@ -271,6 +283,18 @@ describe("AC36 night 2: bridge and bounce pads", () => {
   it("movement keys do not override the launch velocity", () => {
     const r = run(40, n2({ player: { pos: [20, 0, 18] } }), { frames: [{ tick: 1, move: [-1, 0] }] }, 1, 2);
     expect(snap(r, 40).player.pos[0]).toBeGreaterThan(30);
+  });
+  // Instructor slide notes (Ticket-02): the player may still dash during a pad flight.
+  it("dashing during a pad flight is allowed; the launch velocity resumes after the 12 dash ticks", () => {
+    const base = run(30, n2({ player: { pos: [20, 0, 18] } }), undefined, 1, 2);
+    const r = run(30, n2({ player: { pos: [20, 0, 18] } }), { frames: [{ tick: 10, move: [0, -1], dash: true }] }, 1, 2);
+    expect(events(r, "dash").map((e) => e.tick)).toEqual([11]);
+    expect(snap(r, 11).player.grounded).toBe(false);
+    const [vx, , vz] = snap(r, 11).player.vel;
+    expect([vx, vz]).toEqual([0, -14]); // horizontal velocity = dash for 0.2 s
+    const launch = snap(base, 30).player.vel;
+    expect([snap(r, 30).player.vel[0], snap(r, 30).player.vel[2]]).toEqual([launch[0], launch[2]]);
+    expect(snap(r, 30).player.grounded).toBe(false);
   });
 });
 
