@@ -65,7 +65,7 @@ describe("AC63 bench scene runs: no spawning, damage, pickup, fuel burn or end; 
     const w2 = createBenchWorld(42);
     for (let k = 0; k < 240 * 60 + 60; k++) expect(step(w2, DEFAULT_INPUT).some((e) => e.name === "game_over")).toBe(false);
     expect(w2.state).toBe("playing");
-  });
+  }, 30000); // 14 460 ticks × 200 shades: ~1.7 s here, ~5.7 s on the CI runner (default limit 5 s)
 
   it("camera orbit: (30,15,0) at t=0, (0,15,30) a quarter turn later, back after 15 s", () => {
     const c = (t: number) => benchCamera(t).map((v) => Math.round(v * 1000) / 1000 || 0); // −0 → 0
@@ -112,7 +112,7 @@ describe("AC66/AC68 soak command", () => {
     for (const r of a.json!.results) expect(["won", "lost"]).toContain(r);
     expect(a.json!.mem_start_mb).toBeGreaterThan(0);
     expect(soak(["--seed", "7", "--nights", "3"]).json!.results).toEqual(a.json!.results);
-  });
+  }, 30000); // two soak processes (~0.9 s here; CI runners are ~3× slower)
 
   it("bad arguments exit 1", () => {
     expect(soak(["--seed", "x", "--nights", "3"]).code).toBe(1);
