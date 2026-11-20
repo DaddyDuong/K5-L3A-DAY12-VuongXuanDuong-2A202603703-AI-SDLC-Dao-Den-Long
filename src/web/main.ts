@@ -1,8 +1,8 @@
 // Rendering + keyboard only. All gameplay lives in src/sim and is shared with the headless runner.
 import * as THREE from "three";
-import { step } from "../sim/step.js";
+import { distXZ, step } from "../sim/step.js";
 import { TUNING, WORLD } from "../sim/tuning.js";
-import { DEFAULT_INPUT, type InputState, type World } from "../sim/types.js";
+import { DEFAULT_INPUT, type InputState, type SimEvent, type World } from "../sim/types.js";
 import { createWorld, timeLeftS } from "../sim/world.js";
 
 const COLORS = { warm: 0xffa040, danger: 0x3a1450, island: 0x2d3b2a, sky: 0x0b0614 };
@@ -17,7 +17,20 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color(COLORS.sky);
 scene.fog = new THREE.Fog(COLORS.danger, 15, 70);
 const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.1, 300);
-scene.add(new THREE.HemisphereLight(0x6a4c9c, 0x10081a, 0.6));
+const ambient = new THREE.HemisphereLight(0x6a4c9c, 0x10081a, 0.6);
+scene.add(ambient);
+const fogDark = new THREE.Color(COLORS.danger);
+const fogWarm = new THREE.Color(0x6a4a3a);
+
+// Pulse effect: a warm ring that expands to pulse_radius and fades.
+const pulseRing = new THREE.Mesh(
+  new THREE.RingGeometry(0.9, 1, 48),
+  new THREE.MeshBasicMaterial({ color: COLORS.warm, transparent: true, opacity: 0, side: THREE.DoubleSide }),
+);
+pulseRing.rotation.x = -Math.PI / 2;
+scene.add(pulseRing);
+let pulseFxStart = -1;
+let hitFxStart = -1;
 
 const island = new THREE.Mesh(
   new THREE.CylinderGeometry(WORLD.island_radius, WORLD.island_radius * 0.8, 3, 64),
@@ -126,14 +139,31 @@ let last = performance.now();
 function frame(now: number) {
   acc += Math.min(0.25, (now - last) / 1000);
   last = now;
-  while (acc >= DT) { step(world, readInput()); acc -= DT; }
+  while (acc >= DT) { onEvents(step(world, readInput()), now / 1000); acc -= DT; }
   render(now / 1000);
   requestAnimationFrame(frame);
 }
 
+function onEvents(events: SimEvent[], t: number) {
+  for (const e of events) {
+    if (e.name === "pulse") pulseFxStart = t;
+    if (e.name === "player_hit") hitFxStart = t;
+    if (e.name === "game_over") endReason = REASONS[e.data.reason as string] ?? "";
+  }
+}
+
+const REASONS: Record<string, string> = {
+  all_lit: "Cả 5 Đèn Lồng Lớn đã sáng.",
+  no_flames: "Mây đã hết lửa.",
+  dawn: "Trời đã sáng mà đảo vẫn chưa sáng đèn.",
+};
+let endReason = "";
+
 function render(t: number) {
   const w = world;
   player.position.set(...w.player.pos);
+  // Blink while invulnerable after a hit.
+  player.visible = w.steps >= w.invulnUntil || Math.floor(t * 10) % 2 === 0;
   const yaw = (camYawDeg * Math.PI) / 180;
   player.rotation.y = yaw;
   const back = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw)).multiplyScalar(-8);
@@ -145,10 +175,30 @@ function render(t: number) {
     const v = lanternViews.get(l.id)!;
     const mat = v.lamp.material as THREE.MeshStandardMaterial;
     if (l.lit) lit++;
-    mat.emissive.setHex(l.lit ? COLORS.warm : 0x000000);
-    mat.emissiveIntensity = l.lit ? 2.5 : 0;
-    v.light.intensity = l.lit ? 40 : 0;
+    // Glow grows with the deposited amount; full light once lit.
+    const fill = Math.min(1, l.deposited / TUNING.lantern_cost);
+    mat.emissive.setHex(COLORS.warm);
+    mat.emissiveIntensity = l.lit ? 2.5 : 0.4 * fill;
+    v.light.intensity = l.lit ? 40 : 4 * fill;
   }
+  // The island brightens as lanterns are lit.
+  const k = lit / w.lanterns.length;
+  ambient.intensity = 0.6 + 1.2 * k;
+  (scene.fog as THREE.Fog).color.copy(fogDark).lerp(fogWarm, k);
+  (scene.background as THREE.Color).copy(new THREE.Color(COLORS.sky)).lerp(new THREE.Color(0x2a1a30), k);
+
+  // Pulse ring + hit flash.
+  const pa = pulseFxStart < 0 ? 1 : (t - pulseFxStart) / 0.4;
+  const pm = pulseRing.material as THREE.MeshBasicMaterial;
+  pm.opacity = pa < 1 ? 0.8 * (1 - pa) : 0;
+  const ringR = Math.max(0.01, TUNING.pulse_radius * Math.min(1, pa));
+  pulseRing.scale.set(ringR, ringR, 1);
+  pulseRing.position.set(w.player.pos[0], 0.05, w.player.pos[2]);
+  const hitA = hitFxStart < 0 ? 1 : (t - hitFxStart) / 0.3;
+  document.body.style.boxShadow = hitA < 1 ? `inset 0 0 120px rgba(150,40,200,${0.8 * (1 - hitA)})` : "none";
+
+  const nearLantern = w.lanterns.some((l) => !l.lit && distXZ(w.player.pos, l.pos) <= TUNING.interact_radius);
+  const pulseReady = w.steps >= w.pulseReadyAt && w.player.carried >= TUNING.pulse_cost;
   syncMap(w.motes, moteViews, () => new THREE.Mesh(moteGeo, moteMat), (m, it) =>
     m.position.set(it.pos[0], 0.6 + 0.15 * Math.sin(t * 3 + it.pos[0]), it.pos[2]));
   syncMap(w.shades, shadeViews, () => new THREE.Mesh(shadeGeo, shadeMat), (m, it) => {
@@ -159,9 +209,12 @@ function render(t: number) {
   hud.innerHTML =
     `Thời gian: ${timeLeftS(w).toFixed(0)}s · Điểm: ${w.score}<br>` +
     `Lửa: ${"♥".repeat(w.player.flames)} · Đom đóm: ${w.player.carried}/${TUNING.carry_capacity}<br>` +
-    `Đèn: ${lit}/${w.lanterns.length} · seed ${seed}`;
+    `Đèn: ${lit}/${w.lanterns.length} · Tỏa sáng (F): ${pulseReady ? "sẵn sàng" : "chưa"}` +
+    (nearLantern && w.player.carried > 0 ? `<br><b>Nhấn E để nạp đèn</b>` : "") +
+    `<br><small>seed ${seed}</small>`;
   overlay.innerHTML = w.state === "playing" ? "" :
-    `<h1>${w.state === "won" ? "Đảo đã sáng lại!" : "Bóng tối thắng đêm nay"}</h1><div>Điểm: ${w.score} · Nhấn R để chơi lại</div>`;
+    `<h1>${w.state === "won" ? "Đảo đã sáng lại!" : "Bóng tối thắng đêm nay"}</h1>` +
+    `<div>${endReason}</div><div>Điểm: ${w.score} · Nhấn R để chơi lại</div>`;
 
   renderer.render(scene, camera);
 }
