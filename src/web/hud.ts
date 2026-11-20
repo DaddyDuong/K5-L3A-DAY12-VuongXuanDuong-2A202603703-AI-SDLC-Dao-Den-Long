@@ -1,10 +1,13 @@
 // DOM HUD (Ticket-02 item 7): flames top-left, mm:ss top-centre (red + blinking ≤ 30 s), lanterns k/n and score
-// top-right, 10-cell mote bar bottom-centre, dash / pulse cooldowns bottom-right, deposit prompt near a lantern,
+// top-right, mote bar bottom-centre, dash / pulse cooldowns bottom-right, deposit prompt near a lantern,
 // and an arrow to the nearest unlit lantern when it is off screen.
+// Ticket-03: lit count shows the dawn target, the bar has one cell per capacity slot with "carried / capacity",
+// and the prompt says light / relight (x/10 or x/5) or refuel (fuel/100).
 import * as THREE from "three";
 import { TUNING, WORLD } from "../sim/tuning.js";
 import type { World } from "../sim/types.js";
-import { distXZ, timeLeftS } from "../sim/world.js";
+import { litNeeded } from "../sim/step.js";
+import { capacity, distXZ, timeLeftS } from "../sim/world.js";
 
 const $ = (id: string) => document.getElementById(id)!;
 
@@ -18,6 +21,7 @@ export class Hud {
   private readonly lanterns = $("lanterns");
   private readonly score = $("score");
   private readonly bar = $("motebar");
+  private readonly carry = $("carry");
   private readonly cdDash = $("cd-dash");
   private readonly cdPulse = $("cd-pulse");
   private readonly prompt = $("prompt");
@@ -26,12 +30,11 @@ export class Hud {
   private readonly tag = $("tag");
   private lastFlames = -1;
   private lastCarried = -1;
+  private lastCapacity = -1;
   private bannerUntil = 0;
   private readonly v = new THREE.Vector3();
 
-  constructor() {
-    this.bar.innerHTML = Array.from({ length: TUNING.carry_capacity }, () => `<i></i>`).join("");
-  }
+  constructor() {}
 
   show(on: boolean) {
     this.root.classList.toggle("hidden", !on);
@@ -59,9 +62,17 @@ export class Hud {
     this.timer.textContent = `${String(Math.floor(secs / 60)).padStart(2, "0")}:${String(secs % 60).padStart(2, "0")}`;
     this.timer.classList.toggle("low", left <= 30);
     const lit = w.lanterns.filter((l) => l.lit).length;
-    this.lanterns.textContent = `${lit}/${w.lanterns.length}`;
+    this.lanterns.textContent = `${lit}/${w.lanterns.length} (cần ${litNeeded(w.lanterns.length)})`;
     this.score.textContent = String(w.score);
+    const cap = capacity(w);
+    if (cap !== this.lastCapacity) {
+      this.bar.innerHTML = Array.from({ length: cap }, () => `<i></i>`).join("");
+      this.bar.classList.toggle("wide", cap > 12);
+      this.lastCapacity = cap;
+      this.lastCarried = -1;
+    }
     if (p.carried !== this.lastCarried) {
+      this.carry.textContent = `${p.carried} / ${cap}`;
       const cells = this.bar.children;
       for (let i = 0; i < cells.length; i++) cells[i]!.classList.toggle("full", i < p.carried);
       this.lastCarried = p.carried;
@@ -75,15 +86,27 @@ export class Hud {
     this.cdDash.classList.toggle("charm", p.charmTicks > 0);
     this.cdPulse.classList.toggle("ready", p.pulseCdTicks === 0 && p.carried >= TUNING.pulse_cost);
 
-    // Deposit prompt: nearest unlit lantern within interact range.
+    // Prompt: the lantern E would act on (nearest that can receive: unlit, or lit and not full).
+    let target: World["lanterns"][number] | undefined;
+    for (const l of w.lanterns) {
+      const ok = !l.lit || l.fuel < WORLD.fuel_max_units;
+      if (ok && distXZ(p.pos, l.pos) <= TUNING.interact_radius && (!target || distXZ(p.pos, l.pos) < distXZ(p.pos, target.pos))) target = l;
+    }
+    this.prompt.classList.toggle("show", target !== undefined);
+    if (target) {
+      const fuel = Math.floor(target.fuel / WORLD.fuel_units_per_fuel);
+      this.prompt.textContent = target.lit
+        ? `E — Châm dầu (${fuel}/${TUNING.fuel_max})`
+        : target.everLit
+          ? `E — Thắp lại (${target.deposited}/${TUNING.relight_cost})`
+          : `E — Nạp ánh sáng (${target.deposited}/${TUNING.lantern_cost})`;
+    }
+    const inRange = target !== undefined;
+
+    // Off-screen arrow to the nearest unlit lantern.
     const unlit = w.lanterns.filter((l) => !l.lit);
     let nearest = unlit[0];
     for (const l of unlit) if (distXZ(p.pos, l.pos) < distXZ(p.pos, nearest!.pos)) nearest = l;
-    const inRange = nearest !== undefined && distXZ(p.pos, nearest.pos) <= TUNING.interact_radius;
-    this.prompt.classList.toggle("show", inRange);
-    if (inRange) this.prompt.textContent = `E — Nạp ánh sáng (${nearest!.deposited}/${TUNING.lantern_cost})`;
-
-    // Off-screen arrow to the nearest unlit lantern.
     if (nearest && !inRange) {
       this.v.set(nearest.pos[0], nearest.pos[1] + 3.5, nearest.pos[2]).project(camera);
       const behind = this.v.z > 1;

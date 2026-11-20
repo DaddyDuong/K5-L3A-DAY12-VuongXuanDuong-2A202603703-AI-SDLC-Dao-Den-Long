@@ -24,6 +24,12 @@ export const PALETTE = {
   text: 0xf5f1e6,
 } as const;
 
+/** Ticket-03 §6 "Bảng màu dễ phân biệt": shade rim + eyes and the UI warning colour change. */
+export const CB_PALETTE = {
+  shadeRim: 0x00b3ff,
+  danger: 0xffffff,
+} as const;
+
 export const css = (hex: number) => `#${hex.toString(16).padStart(6, "0")}`;
 
 /** Ticket-02: ambient intensity = 0.15 + 0.55 × (lit / total). */

@@ -2,9 +2,9 @@
 // Terrain is built from the same shapes as src/sim/maps.ts groundAt() (islands, bridge, tiers, ramps, tower).
 import * as THREE from "three";
 import type { NightMap } from "../sim/maps.js";
-import { TUNING } from "../sim/tuning.js";
+import { TUNING, WORLD } from "../sim/tuning.js";
 import type { Drifter, Shade, World } from "../sim/types.js";
-import { PALETTE, ambientFor } from "./palette.js";
+import { CB_PALETTE, PALETTE, ambientFor } from "./palette.js";
 
 const std = (color: number, emissive = 0x000000, emissiveIntensity = 0, extra: THREE.MeshStandardMaterialParameters = {}) =>
   new THREE.MeshStandardMaterial({ color, emissive, emissiveIntensity, roughness: 0.85, ...extra });
@@ -56,6 +56,11 @@ interface LanternView {
   safeRing: THREE.Mesh;
   halo: THREE.Sprite;
   litAt: number;
+  /** Ticket-03: fuel bar above a lit lantern (background + fill growing from the left). */
+  fuelBg: THREE.Sprite;
+  fuelFill: THREE.Sprite;
+  /** Ticket-03 §6: an unlit lantern is squashed 20% and its paper shows tears (readable without colour). */
+  tears: THREE.Group;
 }
 
 export class NightView {
@@ -75,6 +80,7 @@ export class NightView {
   private readonly leafPos: Float32Array;
   private readonly dashTrail: THREE.Mesh[] = [];
   private pulseAt = -10;
+  private colorblind = false;
   private dashAt = -10;
   private lastPlayer = new THREE.Vector3();
 
@@ -316,10 +322,28 @@ export class NightView {
     safeRing.rotation.x = -Math.PI / 2;
     safeRing.position.y = 0.05;
     safeRing.visible = false;
-    group.add(pole, lamp, core, roof, light, halo, marker, safeRing);
+    const bar = (color: number, opacity: number) => {
+      const s = new THREE.Sprite(new THREE.SpriteMaterial({ color, transparent: true, opacity, depthWrite: false }));
+      s.center.set(0, 0.5); // grows from the left edge
+      s.position.set(-0.8, 4.75, 0);
+      s.scale.set(1.6, 0.16, 1);
+      return s;
+    };
+    const fuelBg = bar(0x0e1430, 0.75);
+    const fuelFill = bar(PALETTE.lanternLit, 1);
+    fuelFill.renderOrder = 1;
+    const tears = new THREE.Group();
+    const tearMat = new THREE.MeshBasicMaterial({ color: 0x0b0d16, side: THREE.DoubleSide });
+    for (const [a, y, h] of [[0.4, 3.62, 0.5], [2.3, 3.4, 0.38], [4.2, 3.55, 0.45]] as const) {
+      const tear = new THREE.Mesh(new THREE.PlaneGeometry(0.09, h), tearMat);
+      tear.position.set(Math.cos(a) * 0.56, y, Math.sin(a) * 0.56);
+      tear.rotation.set(0, -a + Math.PI / 2, 0.35);
+      tears.add(tear);
+    }
+    group.add(pole, lamp, core, roof, light, halo, marker, safeRing, fuelBg, fuelFill, tears);
     group.position.set(pos[0]!, pos[1]!, pos[2]!);
     this.scene.add(group);
-    this.lanterns.set(id, { group, lamp, core, light, safeRing, halo, litAt: -1 });
+    this.lanterns.set(id, { group, lamp, core, light, safeRing, halo, litAt: -1, fuelBg, fuelFill, tears });
   }
 
   private buildPlayer(): { group: THREE.Group; pivot: THREE.Group } {
@@ -367,14 +391,19 @@ export class NightView {
     const tail = new THREE.Mesh(this.shadeTailGeo, std(PALETTE.shadeBody, PALETTE.shadeRim, 0.15, { transparent: true }));
     tail.rotation.x = Math.PI;
     tail.position.y = -0.7;
-    const eyeMat = new THREE.MeshBasicMaterial({ color: 0xd9c2ff });
+    const eyeMat = new THREE.MeshBasicMaterial({ color: this.colorblind ? CB_PALETTE.shadeRim : 0xd9c2ff });
     const e1 = new THREE.Mesh(this.shadeEyeGeo, eyeMat);
     const e2 = e1.clone();
     e1.position.set(0.2, 0.12, 0.55);
     e2.position.set(-0.2, 0.12, 0.55);
     g.add(body, rim, tail, e1, e2);
-    g.userData = { body, rim, tail };
+    g.userData = { body, rim, tail, eyeMat };
     return g;
+  }
+
+  /** Ticket-03 §6: shade rim and eyes #7A3CFF -> #00B3FF. */
+  setColorblind(on: boolean) {
+    this.colorblind = on;
   }
 
   private makeDrifter() {
@@ -478,15 +507,28 @@ export class NightView {
       if (!v) continue;
       v.group.position.set(...l.pos);
       const mat = v.lamp.material as THREE.MeshStandardMaterial;
-      const fill = Math.min(1, l.deposited / TUNING.lantern_cost);
+      const cost = l.everLit ? TUNING.relight_cost : TUNING.lantern_cost;
+      const fill = Math.min(1, l.deposited / cost);
+      const fuel = l.fuel / WORLD.fuel_units_per_fuel;
+      // Ticket-03 §1 "Hiển thị": fuel < 30 -> lantern and fuel bar blink slowly (1 Hz).
+      const low = l.lit && fuel < TUNING.low_fuel_threshold;
+      const dim = low && t % 1 >= 0.5;
+      v.lamp.scale.y = l.lit ? 1 : 0.8; // unlit: squashed 20%
+      v.tears.visible = !l.lit;
+      v.fuelBg.visible = v.fuelFill.visible = l.lit;
+      if (l.lit) {
+        v.fuelFill.scale.x = 1.6 * Math.max(0, fuel / TUNING.fuel_max);
+        (v.fuelFill.material as THREE.SpriteMaterial).color.setHex(low ? (this.colorblind ? CB_PALETTE.danger : PALETTE.danger) : PALETTE.lanternLit);
+        (v.fuelFill.material as THREE.SpriteMaterial).opacity = dim ? 0.25 : 1;
+      }
       if (l.lit) {
         lit++;
         mat.color.setHex(PALETTE.lanternLit);
         mat.emissive.setHex(PALETTE.lanternLit);
-        mat.emissiveIntensity = 1.6 + 0.2 * Math.sin(t * 3);
+        mat.emissiveIntensity = (1.6 + 0.2 * Math.sin(t * 3)) * (dim ? 0.25 : 1);
         const burst = v.litAt >= 0 ? Math.max(0, 1 - (t - v.litAt) / 1.2) : 0;
-        v.light.intensity = 45 + 120 * burst;
-        (v.halo.material as THREE.SpriteMaterial).opacity = 0.75 + burst * 0.25;
+        v.light.intensity = (45 + 120 * burst) * (dim ? 0.3 : 1);
+        (v.halo.material as THREE.SpriteMaterial).opacity = (0.75 + burst * 0.25) * (dim ? 0.3 : 1);
         v.halo.scale.setScalar(4.5 + burst * 6);
       } else {
         mat.color.setHex(PALETTE.lanternOff);
@@ -495,8 +537,8 @@ export class NightView {
         v.light.intensity = 6 * fill;
         (v.halo.material as THREE.SpriteMaterial).opacity = 0.15 * fill;
       }
-      v.core.visible = l.lit;
-      v.safeRing.visible = l.lit;
+      v.core.visible = l.lit && !dim;
+      v.safeRing.visible = l.lit && fuel >= TUNING.low_fuel_threshold; // below 30 there is no safe zone
       (v.safeRing.material as THREE.MeshBasicMaterial).opacity = 0.35 + 0.15 * Math.sin(t * 2);
     }
     this.ambient.intensity = ambientFor(lit, w.lanterns.length);
@@ -511,12 +553,14 @@ export class NightView {
 
     // Shades
     this.sync(w.shades, this.shades, () => this.makeShade(), (g) => g, (g, s: Shade) => {
-      const { body, rim, tail } = g.userData as { body: THREE.Mesh; rim: THREE.Mesh; tail: THREE.Mesh };
+      const { body, rim, tail, eyeMat } = g.userData as { body: THREE.Mesh; rim: THREE.Mesh; tail: THREE.Mesh; eyeMat: THREE.MeshBasicMaterial };
+      const rimHex = this.colorblind ? CB_PALETTE.shadeRim : PALETTE.shadeRim;
+      eyeMat.color.setHex(this.colorblind ? CB_PALETTE.shadeRim : 0xd9c2ff);
       const bm = body.material as THREE.MeshStandardMaterial;
       const rm = rim.material as THREE.MeshBasicMaterial;
       const stunned = s.state === "stunned";
       bm.color.setHex(stunned ? PALETTE.shadeStunned : PALETTE.shadeBody);
-      rm.color.setHex(stunned ? PALETTE.shadeStunned : PALETTE.shadeRim);
+      rm.color.setHex(stunned ? PALETTE.shadeStunned : rimHex);
       const spawning = s.state === "spawning";
       const grow = spawning ? 1 - s.ticks / 30 : 1;
       const op = spawning ? 0.3 + 0.6 * grow : s.state === "recoil" ? 0.55 + 0.3 * Math.sin(t * 30) : 1;

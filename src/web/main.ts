@@ -3,7 +3,7 @@
 import * as THREE from "three";
 import { InputTimeline, parseInputs, type InputFrame } from "../sim/inputs.js";
 import { MAPS, type NightId } from "../sim/maps.js";
-import { step } from "../sim/step.js";
+import { litNeeded, step } from "../sim/step.js";
 import { TUNING, WORLD } from "../sim/tuning.js";
 import { DEFAULT_INPUT, type InputState, type SimEvent, type World } from "../sim/types.js";
 import { createWorld, timeLeftS } from "../sim/world.js";
@@ -24,12 +24,12 @@ const speed = Math.max(0.25, Number(params.get("speed") ?? "1") || 1);
 const showFps = params.has("fps");
 
 const INTROS: Record<NightId, string> = {
-  1: "Mây à, đèn trên Đảo Bến tắt hết cả rồi. Gom đom đóm, thắp lại năm ngọn đèn trước khi trời sáng nhé. Bóng Mực sợ ánh đèn, nhớ đứng gần đèn đã thắp khi bị đuổi.",
+  1: "Mây à, đèn trên Đảo Bến tắt hết cả rồi. Gom đom đóm thắp đèn, và giữ ít nhất ba ngọn còn sáng tới lúc trời hửng nhé. Đèn cạn dầu thì châm thêm; đèn sắp cạn là Bóng Mực kéo tới hút.",
   2: "Đảo Cau là hai hòn nối nhau bằng chiếc cầu tre không lan can. Bục nhảy sẽ hất con sang bờ bên kia. Coi chừng Gió Lạc: mang nhiều đom đóm là nó tới giật đấy.",
-  3: "Tháp chuông đứng trên ba tầng đá của Đảo Chuông. Gió mạnh thổi từng cơn, thấy lá bay là gió sắp tới. Thắp đủ bảy ngọn đèn để chuông ngân đón bình minh.",
+  3: "Tháp chuông đứng trên ba tầng đá của Đảo Chuông. Gió mạnh thổi từng cơn, thấy lá bay là gió sắp tới. Giữ năm trong bảy ngọn đèn sáng tới bình minh để chuông ngân.",
 };
 const REASONS: Record<string, string> = {
-  all_lit: "Mọi Đèn Lồng Lớn đã sáng.",
+  dawn_survived: "Mây giữ đảo sáng tới bình minh.",
   no_flames: "Mây đã hết Ngọn Lửa.",
   dawn: "Trời đã sáng mà đảo vẫn chưa đủ đèn.",
 };
@@ -168,7 +168,7 @@ function showIntro(n: NightId) {
       <div class="eyebrow">Đêm ${n} / 3</div>
       <h1>${MAPS[n].name}</h1>
       <blockquote>“${INTROS[n]}”<cite>— Ông Đăng</cite></blockquote>
-      <p class="sub">${MAPS[n].lanterns.length} Đèn Lồng Lớn · ${Math.round(MAPS[n].duration_s / 60 * 10) / 10} phút tới bình minh</p>
+      <p class="sub">${MAPS[n].lanterns.length} Đèn Lồng Lớn · cần ${litNeeded(MAPS[n].lanterns.length)} đèn sáng lúc bình minh · ${Math.round(MAPS[n].duration_s / 60 * 10) / 10} phút</p>
       <button class="primary" data-act="go">Vào đêm (Enter)</button>
       <button data-act="menu">Về menu</button>
     </div>`);
@@ -181,8 +181,10 @@ function showResult() {
   const w = world!;
   const won = w.state === "won";
   if (won) wonScores.set(night, Math.max(wonScores.get(night) ?? 0, w.score));
-  const lit = w.lanterns.filter((l) => l.lit).length;
-  const bonusTime = won ? Math.floor(timeLeftS(w)) * TUNING.score.per_second_left : 0;
+  const litL = w.lanterns.filter((l) => l.lit);
+  const lit = litL.length;
+  // Ticket-03 §5: dawn bonus per lit lantern (50 + floor(fuel)) and per flame; the time bonus is gone.
+  const bonusLamps = won ? litL.reduce((a, l) => a + TUNING.score.per_lit_at_dawn + Math.floor(l.fuel / WORLD.fuel_units_per_fuel), 0) : 0;
   const bonusFlames = won ? w.player.flames * TUNING.score.per_flame_left : 0;
   render(`
     <div class="panel result ${won ? "won" : "lost"}">
@@ -190,8 +192,8 @@ function showResult() {
       <h1>${won ? "Đảo đã sáng lại!" : "Bóng tối thắng đêm nay"}</h1>
       <p class="sub">${endReason}</p>
       <table>
-        <tr><td>Đèn đã thắp</td><td>${lit}/${w.lanterns.length}</td></tr>
-        ${won ? `<tr><td>Thưởng thời gian (${Math.floor(timeLeftS(w))} s × ${TUNING.score.per_second_left})</td><td>+${bonusTime}</td></tr>
+        <tr><td>Đèn sáng lúc kết thúc</td><td>${lit}/${w.lanterns.length} (cần ${litNeeded(w.lanterns.length)})</td></tr>
+        ${won ? `<tr><td>Thưởng bình minh (${lit} đèn × (${TUNING.score.per_lit_at_dawn} + dầu còn lại))</td><td>+${bonusLamps}</td></tr>
         <tr><td>Thưởng Ngọn Lửa (${w.player.flames} × ${TUNING.score.per_flame_left})</td><td>+${bonusFlames}</td></tr>` : ""}
         <tr class="total"><td>Điểm Đêm ${night}</td><td>${w.score}</td></tr>
       </table>
@@ -255,6 +257,7 @@ function openSettings() {
         <input id="vol" type="range" min="0" max="100" value="${Math.round(settings.volume * 100)}"></label>
       <label>Độ nhạy chuột <output id="sens-out">${sens}</output>
         <input id="sens" type="range" min="0" max="100" value="${sens}"></label>
+      <label class="check"><input id="cb" type="checkbox" ${settings.colorblind ? "checked" : ""}> Bảng màu dễ phân biệt</label>
       <p class="sub">Được lưu lại cho lần mở game sau.</p>
       <button class="primary" data-act="back">Xong</button>
     </div>`);
@@ -267,11 +270,23 @@ function openSettings() {
     saveSettings(settings);
   });
   vol.addEventListener("change", () => sound.play("pick"));
+  const cbEl = document.getElementById("cb") as HTMLInputElement;
+  cbEl.addEventListener("change", () => {
+    settings.colorblind = cbEl.checked;
+    applyColorblind();
+    saveSettings(settings);
+  });
   sensEl.addEventListener("input", () => {
     settings.mouseSensitivity = SENSITIVITY_RANGE.min + (Number(sensEl.value) / 100) * (SENSITIVITY_RANGE.max - SENSITIVITY_RANGE.min);
     document.getElementById("sens-out")!.textContent = sensEl.value;
     saveSettings(settings);
   });
+}
+
+/** Ticket-03 §6: colour-blind palette for the UI (CSS) and the 3D view. */
+function applyColorblind() {
+  document.body.classList.toggle("cb", settings.colorblind);
+  view?.setColorblind(settings.colorblind);
 }
 
 function closeSettings() {
@@ -288,6 +303,7 @@ function loadNight(n: NightId) {
   world = createWorld(seed, n);
   view?.dispose();
   view = new NightView(MAPS[n], innerWidth / innerHeight);
+  applyColorblind();
   camYawDeg = 0;
   endAt = -1;
   endReason = "";
@@ -332,12 +348,17 @@ function onEvents(events: SimEvent[], t: number) {
         sound.play("pick");
         break;
       case "deposit":
+      case "refuel":
         sound.play("deposit");
+        break;
+      case "lantern_out":
+        sound.play("shade");
+        hud.flash("Một ngọn đèn đã cạn dầu và tắt!", 2, t, true);
         break;
       case "lantern_lit":
         sound.play("light");
         v.lanternLitFx(e.data.lantern_id as string, t);
-        hud.flash("Một ngọn đèn đã sáng!", 1.8, t);
+        hud.flash(e.data.relight ? "Đèn đã được thắp lại!" : "Một ngọn đèn đã sáng!", 1.8, t);
         break;
       case "pulse":
         sound.play("pulse");

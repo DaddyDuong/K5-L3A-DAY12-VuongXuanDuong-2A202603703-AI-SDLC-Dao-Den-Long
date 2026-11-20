@@ -68,6 +68,13 @@
                 background: rgba(14, 20, 48, 0.7); font-size: 16px; opacity: 0; transition: opacity 0.25s; }
       #banner.show { opacity: 1; }
       #banner.danger { color: var(--danger); }
+      #motebar.wide i { width: 13px; height: 13px; }
+      #carry { position: absolute; bottom: 52px; left: 50%; transform: translateX(-50%); font-size: 13px; opacity: 0.85;
+               font-variant-numeric: tabular-nums; }
+      /* Ticket-03 §6 "Bảng màu dễ phân biệt": danger text becomes #FFFFFF and always carries a ⚠ icon. */
+      body.cb { --danger: #ffffff; }
+      body.cb #timer.low::before, body.cb #banner.danger::before, body.cb .result.lost h1::before { content: "⚠ "; }
+      .settings label.check { display: flex; gap: 10px; align-items: center; }
       #tag { position: absolute; bottom: 6px; left: 12px; font-size: 11px; opacity: 0.5; }
       #fps { position: fixed; top: 54px; left: 16px; font: 12px ui-monospace, monospace; background: #000a; padding: 3px 6px;
              border-radius: 4px; z-index: 5; }
@@ -106,12 +113,13 @@
       <div id="flames"></div>
       <div id="timer">05:00</div>
       <div id="stats">
-        <div><span class="lbl">Đèn</span><span id="lanterns">0/5</span></div>
+        <div><span class="lbl">Đèn sáng</span><span id="lanterns">0/5</span></div>
         <div><span class="lbl">Điểm</span><span id="score">0</span></div>
       </div>
       <div id="banner"></div>
       <div id="prompt"></div>
       <div id="arrow"></div>
+      <div id="carry"></div>
       <div id="motebar"></div>
       <div id="cooldowns">
         <div class="cd" id="cd-dash"><span><b>Shift</b>Lướt</span></div>

@@ -1,12 +1,13 @@
-// Player settings (volume, mouse sensitivity) kept between sessions in localStorage.
+// Player settings (volume, mouse sensitivity, colour-blind palette) kept between sessions in localStorage.
 // Storage can be unavailable (private mode, blocked site data): fall back to defaults silently.
 export interface Settings {
   volume: number; // 0..1
   mouseSensitivity: number; // degrees of camera yaw per pixel
+  colorblind: boolean; // Ticket-03 §6 "Bảng màu dễ phân biệt"
 }
 
 const KEY = "dao-den-long.settings.v1";
-export const DEFAULT_SETTINGS: Settings = { volume: 0.6, mouseSensitivity: 0.25 };
+export const DEFAULT_SETTINGS: Settings = { volume: 0.6, mouseSensitivity: 0.25, colorblind: false };
 export const SENSITIVITY_RANGE = { min: 0.05, max: 1 } as const;
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
@@ -23,6 +24,7 @@ export function loadSettings(): Settings {
         SENSITIVITY_RANGE.min,
         SENSITIVITY_RANGE.max,
       ),
+      colorblind: j.colorblind === true,
     };
   } catch {
     return { ...DEFAULT_SETTINGS };
