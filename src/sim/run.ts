@@ -6,6 +6,7 @@ import { createWorld } from "./world.js";
 
 export interface RunOptions {
   seed: number;
+  night?: number;
   scenario?: Scenario;
   inputs?: InputFrame[];
   ticks: number;
@@ -17,11 +18,11 @@ export interface RunOptions {
  * and produces state k+1; its events are tagged tick k+1. Stops after `ticks` steps or game end.
  */
 export function runHeadless(o: RunOptions): string[] {
-  const w = createWorld(o.seed, o.scenario);
+  const w = createWorld(o.seed, o.night ?? 1, o.scenario);
   const timeline = new InputTimeline(o.inputs ?? []);
   const lines: string[] = [JSON.stringify(snapshot(w))];
 
-  for (let k = 0; k < o.ticks && w.state === "playing"; k++) {
+  for (let k = 0; k < o.ticks && (w.state === "playing" || w.state === "paused"); k++) {
     const events = step(w, timeline.at(k));
     for (const e of events) lines.push(JSON.stringify({ type: "event", tick: k + 1, name: e.name, data: e.data }));
     if ((k + 1) % o.snapshotEvery === 0) lines.push(JSON.stringify(snapshot(w)));

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Headless runner — Test Contract v1.0 §B.
+// Headless runner — Test Contract v1.1 (v1.0 §B + Ticket-02 Phần 4).
 // Exit codes: 0 ok, 1 bad arguments / IO error, 2 malformed inputs or scenario file.
 import { readFileSync, writeFileSync } from "node:fs";
 import { MalformedError, parseInputs } from "../sim/inputs.js";
@@ -9,7 +9,7 @@ import { parseScenario } from "../sim/scenario.js";
 class UsageError extends Error {}
 
 const USAGE =
-  "usage: headless --seed <int> --night 1 [--scenario f.json] [--inputs f.json] --ticks <int> --out f.jsonl [--snapshot-every <int>]";
+  "usage: headless --seed <int> --night <1|2|3> [--scenario f.json] [--inputs f.json] --ticks <int> --out f.jsonl [--snapshot-every <int>]";
 
 function parseArgs(argv: string[]): Record<string, string> {
   const out: Record<string, string> = {};
@@ -55,16 +55,16 @@ function main(): number {
     const args = parseArgs(process.argv.slice(2));
     const seed = int(args, "seed", { required: true });
     const night = int(args, "night", { required: true });
-    if (night !== 1) throw new UsageError(`--night ${night} is not supported (only 1)`);
+    if (night < 1 || night > 3) throw new UsageError(`--night ${night} is not supported (1, 2 or 3)`);
     const ticks = int(args, "ticks", { required: true, min: 0 });
     const snapshotEvery = int(args, "snapshot-every", { required: false, min: 1, def: 10 });
     const out = args.out;
     if (!out) throw new UsageError("--out is required");
 
-    const scenario = args.scenario ? parseScenario(readJson(args.scenario, "scenario")) : undefined;
+    const scenario = args.scenario ? parseScenario(readJson(args.scenario, "scenario"), night) : undefined;
     const inputs = args.inputs ? parseInputs(readJson(args.inputs, "inputs")) : undefined;
 
-    const lines = runHeadless({ seed, scenario, inputs, ticks, snapshotEvery });
+    const lines = runHeadless({ seed, night, scenario, inputs, ticks, snapshotEvery });
     writeFileSync(out, lines.join("\n") + "\n");
     return 0;
   } catch (e) {

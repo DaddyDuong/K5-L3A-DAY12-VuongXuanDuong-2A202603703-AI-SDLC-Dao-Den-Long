@@ -1,20 +1,34 @@
 import { MalformedError } from "./inputs.js";
-import type { Vec3 } from "./types.js";
+import { nightMap } from "./maps.js";
+import { DRIFTER_STATES, SHADE_STATES, type DrifterState, type ShadeState, type Vec3 } from "./types.js";
 
 export interface Scenario {
-  player?: { pos?: Vec3; carried?: number; flames?: number };
+  player?: {
+    pos?: Vec3;
+    carried?: number;
+    flames?: number;
+    invuln_ticks?: number;
+    dash_cd_ticks?: number;
+    pulse_cd_ticks?: number;
+    charm_ticks?: number;
+  };
   random_motes?: boolean;
   random_shades?: boolean;
+  random_drifters?: boolean;
+  wind_enabled?: boolean;
   motes?: Vec3[];
-  shades?: { id?: string; pos: Vec3 }[];
+  shades?: { id?: string; pos: Vec3; state?: ShadeState; state_ticks_left?: number }[];
+  drifters?: { id?: string; pos: Vec3; state?: DrifterState; stolen?: number; state_ticks_left?: number }[];
+  charms?: { id?: string; pos: Vec3; available?: boolean; respawn_ticks?: number }[];
   lanterns?: { id: string; pos?: Vec3; lit?: boolean; deposited?: number }[];
   time_left_s?: number;
 }
 
-const LANTERN_IDS = new Set(["L1", "L2", "L3", "L4", "L5"]);
+const PLAYER_TICKS = ["invuln_ticks", "dash_cd_ticks", "pulse_cd_ticks", "charm_ticks"] as const;
+const FLAGS = ["random_motes", "random_shades", "random_drifters", "wind_enabled"] as const;
 
-/** Validate a parsed scenario JSON document. Throws MalformedError (exit code 2). */
-export function parseScenario(raw: unknown): Scenario {
+/** Validate a parsed scenario JSON document for `night`. Throws MalformedError (exit code 2). */
+export function parseScenario(raw: unknown, night = 1): Scenario {
   if (!isObj(raw)) throw new MalformedError("scenario: expected a JSON object");
   const sc: Scenario = {};
   if ("player" in raw) {
@@ -24,30 +38,58 @@ export function parseScenario(raw: unknown): Scenario {
     if ("pos" in p) sc.player.pos = vec3(p.pos, "player.pos");
     if ("carried" in p) sc.player.carried = nonNegInt(p.carried, "player.carried");
     if ("flames" in p) sc.player.flames = nonNegInt(p.flames, "player.flames");
+    for (const k of PLAYER_TICKS) if (k in p) sc.player[k] = nonNegInt(p[k], `player.${k}`);
   }
-  for (const k of ["random_motes", "random_shades"] as const) {
+  for (const k of FLAGS) {
     if (k in raw) {
       if (typeof raw[k] !== "boolean") throw new MalformedError(`scenario: '${k}' must be boolean`);
       sc[k] = raw[k] as boolean;
     }
   }
-  if ("motes" in raw) {
-    if (!Array.isArray(raw.motes)) throw new MalformedError("scenario: 'motes' must be an array");
-    sc.motes = raw.motes.map((m, i) => vec3(m, `motes[${i}]`));
-  }
+  if ("motes" in raw) sc.motes = arr(raw.motes, "motes").map((m, i) => vec3(m, `motes[${i}]`));
   if ("shades" in raw) {
-    if (!Array.isArray(raw.shades)) throw new MalformedError("scenario: 'shades' must be an array");
-    sc.shades = raw.shades.map((s, i) => {
-      if (!isObj(s)) throw new MalformedError(`scenario: shades[${i}] must be an object`);
-      if ("id" in s && typeof s.id !== "string") throw new MalformedError(`scenario: shades[${i}].id must be a string`);
-      return { ...(typeof s.id === "string" ? { id: s.id } : {}), pos: vec3(s.pos, `shades[${i}].pos`) };
+    sc.shades = arr(raw.shades, "shades").map((s, i) => {
+      const w = `shades[${i}]`;
+      if (!isObj(s)) throw new MalformedError(`scenario: ${w} must be an object`);
+      const out: NonNullable<Scenario["shades"]>[number] = { pos: vec3(s.pos, `${w}.pos`) };
+      if ("id" in s) out.id = str(s.id, `${w}.id`);
+      if ("state" in s) out.state = oneOf(s.state, SHADE_STATES, `${w}.state`);
+      if ("state_ticks_left" in s) out.state_ticks_left = nonNegInt(s.state_ticks_left, `${w}.state_ticks_left`);
+      return out;
+    });
+  }
+  if ("drifters" in raw) {
+    sc.drifters = arr(raw.drifters, "drifters").map((d, i) => {
+      const w = `drifters[${i}]`;
+      if (!isObj(d)) throw new MalformedError(`scenario: ${w} must be an object`);
+      const out: NonNullable<Scenario["drifters"]>[number] = { pos: vec3(d.pos, `${w}.pos`) };
+      if ("id" in d) out.id = str(d.id, `${w}.id`);
+      if ("state" in d) out.state = oneOf(d.state, DRIFTER_STATES, `${w}.state`);
+      if ("stolen" in d) out.stolen = nonNegInt(d.stolen, `${w}.stolen`);
+      if ("state_ticks_left" in d) out.state_ticks_left = nonNegInt(d.state_ticks_left, `${w}.state_ticks_left`);
+      return out;
+    });
+  }
+  if ("charms" in raw) {
+    sc.charms = arr(raw.charms, "charms").map((c, i) => {
+      const w = `charms[${i}]`;
+      if (!isObj(c)) throw new MalformedError(`scenario: ${w} must be an object`);
+      const out: NonNullable<Scenario["charms"]>[number] = { pos: vec3(c.pos, `${w}.pos`) };
+      if ("id" in c) out.id = str(c.id, `${w}.id`);
+      if ("available" in c) {
+        if (typeof c.available !== "boolean") throw new MalformedError(`scenario: ${w}.available must be boolean`);
+        out.available = c.available;
+      }
+      if ("respawn_ticks" in c) out.respawn_ticks = nonNegInt(c.respawn_ticks, `${w}.respawn_ticks`);
+      return out;
     });
   }
   if ("lanterns" in raw) {
-    if (!Array.isArray(raw.lanterns)) throw new MalformedError("scenario: 'lanterns' must be an array");
-    sc.lanterns = raw.lanterns.map((l, i) => {
-      if (!isObj(l) || typeof l.id !== "string" || !LANTERN_IDS.has(l.id)) {
-        throw new MalformedError(`scenario: lanterns[${i}] needs an id in L1..L5`);
+    const n = nightMap(night).lanterns.length;
+    const ids = new Set(Array.from({ length: n }, (_, i) => `L${i + 1}`));
+    sc.lanterns = arr(raw.lanterns, "lanterns").map((l, i) => {
+      if (!isObj(l) || typeof l.id !== "string" || !ids.has(l.id)) {
+        throw new MalformedError(`scenario: lanterns[${i}] needs an id in L1..L${n}`);
       }
       const out: NonNullable<Scenario["lanterns"]>[number] = { id: l.id };
       if ("pos" in l) out.pos = vec3(l.pos, `lanterns[${i}].pos`);
@@ -71,6 +113,23 @@ export function parseScenario(raw: unknown): Scenario {
 
 function isObj(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
+}
+
+function arr(v: unknown, where: string): unknown[] {
+  if (!Array.isArray(v)) throw new MalformedError(`scenario: '${where}' must be an array`);
+  return v;
+}
+
+function str(v: unknown, where: string): string {
+  if (typeof v !== "string") throw new MalformedError(`scenario: '${where}' must be a string`);
+  return v;
+}
+
+function oneOf<T extends string>(v: unknown, allowed: readonly T[], where: string): T {
+  if (typeof v !== "string" || !allowed.includes(v as T)) {
+    throw new MalformedError(`scenario: '${where}' must be one of ${allowed.join(", ")}`);
+  }
+  return v as T;
 }
 
 function vec3(v: unknown, where: string): Vec3 {

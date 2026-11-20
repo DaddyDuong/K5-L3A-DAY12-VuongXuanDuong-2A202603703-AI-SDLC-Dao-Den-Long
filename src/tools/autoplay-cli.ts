@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// usage: node dist-headless/tools/autoplay-cli.js --seed <int> --out <inputs.json>
+// usage: node dist-headless/tools/autoplay-cli.js --seed <int> [--night 1|2|3] [--out <inputs.json>]
 import { writeFileSync } from "node:fs";
 import { autoplay } from "./autoplay.js";
 
@@ -9,8 +9,9 @@ const get = (k: string) => {
   return i >= 0 ? args[i + 1] : undefined;
 };
 const seed = Number(get("seed") ?? "7");
-const out = get("out") ?? `public/replays/seed${seed}-win.inputs.json`;
-const r = autoplay(seed);
+const night = Number(get("night") ?? "1");
+const out = get("out") ?? `public/replays/n${night}-seed${seed}-win.inputs.json`;
+const r = autoplay(seed, night);
 writeFileSync(out, JSON.stringify({ frames: r.frames }) + "\n");
-console.log(JSON.stringify({ seed, out, state: r.state, score: r.score, ticks: r.ticks, flames: r.flames, frames: r.frames.length }));
+console.log(JSON.stringify({ seed, night, out, state: r.state, score: r.score, ticks: r.ticks, flames: r.flames, frames: r.frames.length }));
 process.exitCode = r.state === "won" ? 0 : 1;

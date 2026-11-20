@@ -22,6 +22,8 @@ Ticket: *"Số liệu chuẩn (bắt buộc, thay mọi giá trị tự chọn)"
 | R8 tốn 1, bán kính 6 m (XZ), hồi 1 s, choáng 3 s, đẩy 4 m ngay | Tốn 3, *"khoảng cách 3D tới tâm Bóng Mực ≤ 5 m"* từ *"chân Mây + 0.8 m"*, hồi 3 s, choáng 120 tick, đẩy 4 m *"trong 15 tick đầu"* | AC11–AC14 |
 | R9 +25 chỉ khi chưa choáng | *"+5 mỗi Bóng Mực trúng Tỏa Sáng (mỗi con mỗi lần, kể cả con đang choáng)"* | "re-stun no extra score" → đảo kỳ vọng |
 | R12 thứ tự tick của tôi, **thắng xét trước** | Thứ tự 12 bước bắt buộc; *"hết Ngọn Lửa → luôn thua"* xét **trước** thắng | — (AC mới AC30) |
+| AC20 input đi hình sin 40 s quanh đảo | Rơi khỏi đảo nay là luật (W2) nên đường hình sin rơi xuống biển mây và ván kết thúc sớm | AC20: đổi sang đi vòng tròn ~12 m trong đảo, bắt đầu với túi đầy để Tỏa Sáng chắc chắn xảy ra; vẫn kiểm byte-identical và đủ các event |
+| `r.lines[1]` là snapshot tick kế | Event `night_start` ở tick 1 (*"night_start"*) nằm trước snapshot tick 1 | headless: tìm snapshot theo `tick` thay vì theo chỉ số dòng |
 
 ## 2. Quyết định cho chỗ ticket chưa nói rõ
 
@@ -116,3 +118,11 @@ Ticket: *"Số liệu chuẩn (bắt buộc, thay mọi giá trị tự chọn)"
 - A24: `player.invuln` là boolean hay số giây.
 
 Ghi câu trả lời vào đây trước khi sửa code.
+
+## 6. Ghi chú kiểm thử bot (autoplay)
+
+Bot chỉ để chứng minh mỗi Đêm thắng được (và sinh replay cho bằng chứng), không phải người chơi tối ưu. Đo trên 12 seed
+(1–10, 13, 42) với bot hiện tại: Đêm 1 thắng 12/12, Đêm 2 10/12, Đêm 3 9/12. Đêm 3 khan đom đóm theo đúng số ticket
+(20 + 1 mỗi 240 tick ≈ 110 con trong 360 s cho 70 cần thắp, trừ Gió Lạc cướp), nên bot không Tỏa Sáng vào Gió Lạc
+(bị cướp tối đa 3 = đúng giá một lần Tỏa Sáng) và chỉ Tỏa Sáng cứu Ngọn Lửa cuối. `tests/autoplay.test.ts` dùng seed
+1/7/42 cho Đêm 1–2 và 2/3/7 cho Đêm 3 (các seed bot thắng).

@@ -32,3 +32,24 @@ export function runCli(args: string[], files: { inputs?: unknown; scenario?: unk
   const lines = raw.trim() ? raw.trim().split("\n").map((l) => JSON.parse(l)) : [];
   return { code: r.status, stderr: r.stderr, raw, lines };
 }
+
+/** Isolated scenario: nothing random unless the test adds it. */
+export const scn = (extra: Record<string, unknown>) => ({
+  random_motes: false,
+  random_shades: false,
+  random_drifters: false,
+  ...extra,
+});
+
+/** Run `ticks` steps of `night` (default 1) with a scenario and optional inputs, snapshot every `every` ticks. */
+export const run = (ticks: number, scenario: unknown, inputs?: unknown, every = 1, night = 1, seed = 7) =>
+  runCli(["--seed", String(seed), "--night", String(night), "--ticks", String(ticks), "--snapshot-every", String(every)], {
+    scenario,
+    ...(inputs ? { inputs } : {}),
+  });
+
+export const events = (r: HeadlessResult, name: string) => r.lines.filter((l) => l.type === "event" && l.name === name);
+export const snap = (r: HeadlessResult, tick: number) => r.lines.find((l) => l.type === "snapshot" && l.tick === tick)!;
+export const snaps = (r: HeadlessResult) => r.lines.filter((l) => l.type === "snapshot");
+export const press = (button: string, at = 0) => ({ frames: [{ tick: at, [button]: true }] });
+export const xz = (a: number[], b: number[]) => Math.hypot(a[0]! - b[0]!, a[2]! - b[2]!);

@@ -1,12 +1,10 @@
-import { DEFAULT_INPUT, type InputState } from "./types.js";
+import { BUTTONS, DEFAULT_INPUT, type InputState } from "./types.js";
 
 export class MalformedError extends Error {}
 
 export interface InputFrame extends Partial<InputState> {
   tick: number;
 }
-
-const BUTTONS = ["jump", "interact", "pulse", "dash"] as const;
 
 /** Validate a parsed inputs JSON document. Throws MalformedError (exit code 2). */
 export function parseInputs(raw: unknown): InputFrame[] {
