@@ -17,6 +17,11 @@ Công cụ: Claude Code (Opus 5.5). Harness: `CLAUDE.md`, hook Stop `.claude/hoo
 | 2 | Bot thắng 3 Đêm | (tiếp kế hoạch) | Bot thua Đêm 3. Nguyên nhân tìm bằng cách dựng lại thế giới tại tick bị kẹt: (1) hàm `danger` tính cả Bóng Mực ở tầng dưới → bot đi vòng qua bục nhảy thay vì 8 m tới đèn; (2) ô lưới cạnh dốc có tâm trên dốc nên bot tưởng đang ở độ cao 2.75 m và đi vào vách 85 s; (3) bot tỏa sáng vào Gió Lạc (tốn 3 = đúng số bị cướp) làm thiếu đom đóm. Một thử nghiệm của AI (tỏa sáng khi bị vây) làm tệ hơn (Đêm 2 3/12) và đã bỏ. Kết quả: 12/12, 10/12, 9/12 seed | gộp |
 | 2 | Bản web: chuỗi màn hình, tạm dừng, cài đặt, âm thanh, HUD, bảng màu | (tiếp kế hoạch) | Qua ảnh chụp: lá gió hiện thành ô vuông, áo Mây xám thay vì `#E8E2D0` → sửa. Đồng hồ báo 1–5 FPS: AI kiểm tra rAF trên trang JSON tĩnh cũng chỉ 4/s → Chrome bóp cửa sổ bị che, không phải game chậm; thêm `__bench` đo 4.2 ms/khung. AI ghi trong bảng bằng chứng một ảnh "nhắc nạp" chưa hề chụp; tự phát hiện khi rà lại, chụp bổ sung trước khi commit | gộp |
 | 2 | Đối chiếu repo với slide giảng viên | "phase 2 làm gì, và làm thế nào để tôi biết là đã xong. ngoài ra tôi muốn bổ sung thêm hướng dẫn của trợ giảng từ slide sau …" | Trang slide là app JS: công cụ đọc web chỉ thấy tiêu đề → AI tải bundle JS và trích mảng slide (không chạy JS). Thêm 2 test cho lỗi Coach nêu tên (không bất tử khi lướt; lướt khi bay từ bục). AI tính sai kỳ vọng lần 2 (cho rằng lướt cộng vào vận tốc phóng, thực ra thay thế) → lần thứ hai cùng một lỗi nên thêm luật vào `CLAUDE.md`. Phát hiện README ghi "1 Đêm < 0.5 s" là số đo trên lượt đã thua sớm; đo lại đủ 21 600 tick ≈ 1 s, sửa README và thêm luật "kiểm `end.ticks`" | gộp |
+| 3 | Đọc Ticket-03 trên lab board, chép vào `ticket-03.md` | "onboard tôi làm gì tiếp theo", rồi "thực hiện cho tôi" | Board đã mở Phase 4 ("đang diễn ra"), tức Phase 3 đã quá giờ: AI báo lại nhưng vẫn làm Phase 3 trước. Đọc board bằng ảnh chụp, gom nhiều lần cuộn vào một lần gọi | gộp |
+| 3 | Sim Ticket-03 (dầu, drain, thắp lại, thắng bình minh, sức chứa) + contract v1.2 | (tiếp kế hoạch) | 14 test cũ đỏ, đúng những chỗ ticket thay; sửa từng kỳ vọng kèm lý do (`phase-3-assumptions.md` §1). Test AC43 (21 600 tick) thua sớm ở tick 4872 vì đèn nay cạn dầu: giữ mục đích test, cho `flames: 1000`. Lối ra `drain`: bản đầu xét `chase` trước, khiến vế "châm ≥ 30 → wander" không bao giờ xảy ra → đổi thứ tự (P3-A8) | gộp |
+| 3 | Test AC48–AC57 (`phase3.test.ts`) | (tiếp kế hoạch) | 1 kỳ vọng AI tự đặt sai: sau khi thắp L1, lần bấm E thứ hai châm dầu L1 (đã hao 1/60 dầu) thay vì thắp lại L2. Sim đúng theo ticket → sửa kịch bản test (đi tới L2 trước) | gộp |
+| 3 | Viết lại chiến thuật bot | (tiếp kế hoạch) | Bot cũ sống tới bình minh nhưng thiếu đèn. Thử 4 hướng (châm dầu khi đáng, Tỏa Sáng khi bị vây, quét thông số) trước khi suy luận kinh tế đom đóm: thắp lại 5 con = 100 dầu, rẻ hơn châm dầu 10 lần → "thắp sớm, để cạn, gửi đom đóm vào đèn tắt, thắp lại 69 s cuối". Đêm 1 thắng 18/24 seed, Đêm 2 2/24, Đêm 3 1/24: **chưa đạt** về độ mạnh của bot | gộp |
+| 3 | Web: thanh dầu, nhấp nháy, đèn xẹp + rách, HUD sức chứa, mù màu | (tiếp kế hoạch) | Server preview cũ còn chiếm cổng 4173 (có thể phục vụ bản build cũ) → chụp ở cổng 4174. Bắt khoảnh khắc bằng cách poll DOM rồi phát phím P; lần poll ở tốc độ ×20 lỡ khoảnh khắc thắp lại, nên chụp đèn tắt ở đầu Đêm thay vào đó | gộp |
 
 ## Token và chi phí — Phase 1
 
@@ -78,3 +83,18 @@ Chưa tốt:
   (khôi phục ngữ cảnh từ `CLAUDE.md`, `docs/notes/instructor-guide.md`, `phase-2-assumptions.md`).
 - Đo/ghi số liệu hiệu năng một lần cho đúng (đã phải sửa lại số "< 0.5 s"); 2 lần tính sai kỳ vọng test tốn thêm vòng sửa.
 - Ảnh chụp màn hình qua Chrome bị bóp khung hình: nhiều lần chụp lại để bắt đúng khoảnh khắc. Nên dùng hook DOM (poll + pause) ngay từ đầu.
+
+## Token và chi phí — Phase 3
+
+Nguồn: `/cost` của Claude Code ở cuối Phase 3 (phiên mới cho Phase 3 như đã định; có một lần chạm giới hạn sử dụng giữa chừng).
+
+| Model | Input | Output | Cache read | Cache write | Chi phí |
+|---|---:|---:|---:|---:|---:|
+| _(điền từ `/cost` cuối phiên Phase 3)_ | | | | | |
+
+Nhận xét (không phụ thuộc số liệu):
+- Khoản tốn nhất là **thử nghiệm bot**: mỗi lượt đánh giá 15 ván ~1–2 phút, một lần quét 18 tổ hợp thông số phải dừng giữa chừng.
+  Bài học giống Phase 2: suy luận kinh tế tài nguyên (đom đóm, dầu) trước, rồi mới chạy thử.
+- Phần luật + test xong trong một lượt nhờ quy tắc "trace qua 12 bước trước khi đặt kỳ vọng" trong `CLAUDE.md`;
+  chỉ 1 kỳ vọng test sai và được phát hiện ngay.
+- Bằng chứng ảnh: poll DOM + phát phím P (đã ghi vào skill từ Phase 2) giúp chụp đúng khoảnh khắc với ít ảnh.

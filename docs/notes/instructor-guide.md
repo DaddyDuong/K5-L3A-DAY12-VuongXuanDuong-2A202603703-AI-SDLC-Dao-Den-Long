@@ -59,9 +59,21 @@ Tự kiểm bằng lệnh; cột cuối là trạng thái lúc viết.
 | 11 | Harness cập nhật trong git history | `git log -- CLAUDE.md .claude/` | Đạt |
 | 12 | Nhật ký token/chi phí Phase 2 | `docs/notes/ai-log.md` | Đạt ($22.45) |
 | 13 | Clone sạch ở tag chạy được theo README | `git clone <repo> x && cd x && git checkout phase-2 && npm ci && npm test` | Kiểm lại sau khi tag |
-| 14 | Tag `phase-2` trên GitHub | `git ls-remote --tags origin phase-2` | **Chưa** |
+| 14 | Tag `phase-2` trên GitHub | `git ls-remote --tags origin phase-2` | Đạt (`4e28377`) |
 
 Phase 2 xong khi cả 14 dòng là "Đạt" và lệnh ở dòng 14 in ra một commit.
+
+## Checklist "Phase 3 đã xong" (DoD của Ticket-03)
+
+| # | Điều kiện | Cách tự kiểm | Trạng thái |
+|---|---|---|---|
+| 1 | Bằng chứng game chạy đúng yêu cầu Phase 3 | `docs/proof/README.md` § Phase 3, `phase3.test.ts` AC48–AC57 | Đạt |
+| 2 | Ghi chú quyết định thiết kế về mô hình đèn và luật thắng | ADR-003 trong `phase-3-assumptions.md` §2 | Đạt |
+| 3 | Test cũ bị luật mới làm sai: sửa hoặc xóa có lý do, không skip | `phase-3-assumptions.md` §1; `grep -rn "\.skip\|\.todo" tests` rỗng | Đạt |
+| 4 | Changelog các thay đổi phá vỡ tương thích | `CHANGELOG.md` | Đạt |
+| 5 | Test Phase 1–2 không bị thay vẫn đạt | `npm test` (154/154) | Đạt |
+| 6 | Mỗi Đêm thắng được | `autoplay.test.ts`; bot yếu ở Đêm 2–3 (§6 assumptions) | Đạt (bot: Chưa đạt về tỉ lệ thắng) |
+| 7 | Tag `phase-3` trên GitHub | `git ls-remote --tags origin phase-3` | Xem lịch sử git |
 
 ## Các phase sau (để chuẩn bị, không làm trước)
 
