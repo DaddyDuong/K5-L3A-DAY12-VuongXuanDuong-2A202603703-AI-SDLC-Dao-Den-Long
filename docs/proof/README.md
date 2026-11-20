@@ -13,5 +13,5 @@ Chạy lại toàn bộ: `npm ci && npm test` ở tag tương ứng.
 | Scenario dựng không phát event/điểm | `tests/headless.test.ts` › scenario setup | `npm test` | Đạt |
 | Tính tất định (byte-identical) | `tests/headless.test.ts` › determinism | `npm test` | Đạt |
 | Sai định dạng → exit 2 | `tests/headless.test.ts` › error handling | `npm test` | Đạt |
-| Nhặt đom đóm, nạp đèn, Bóng Mực, tỏa sáng, thắng/thua, điểm | — | — | **Chưa làm** |
-| Game 3D chơi được (đi, nhảy, camera, HUD) | Chạy `npm start`, chụp màn hình | _(thêm ảnh)_ | Một phần |
+| Nhặt, nạp/thắp đèn, Bóng Mực, tỏa sáng, thắng/thua, điểm (AC1–AC18, AC20 trong `docs/notes/phase-1-assumptions.md`) | Test headless theo từng AC | — | **Chưa làm** |
+| Game 3D chơi được từ đầu đến thắng/thua, chơi lại (AC21) | Chạy `npm start`, chụp ảnh/GIF | _(thêm ảnh)_ | Một phần |
