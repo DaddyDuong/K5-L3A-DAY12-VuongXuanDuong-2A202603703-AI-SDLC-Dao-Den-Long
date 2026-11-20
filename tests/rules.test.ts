@@ -114,3 +114,55 @@ describe("R10 win", () => {
     expect(r.lines.at(-1)).toEqual({ type: "end", ticks: 1, state: "won", score: 2 * 299 + 50 * 3 });
   });
 });
+
+const xz = (a: number[], b: number[]) => Math.hypot(a[0]! - b[0]!, a[2]! - b[2]!);
+
+describe("R4/R5/R6 shades", () => {
+  it("AC7: a shade chases the player at shade_speed", () => {
+    const r = run(60, scn({ shades: [{ id: "S1", pos: [10, 0, 0] }] }), undefined, 60);
+    expect(snap(r, 60).shades[0]).toEqual({ id: "S1", pos: [6.5, 0, 0], state: "chase" });
+  });
+
+  it("AC15: shades never enter safe_radius of a lit lantern", () => {
+    const r = run(600, scn({
+      player: { pos: [0, 0, 10] },
+      shades: [{ id: "S1", pos: [0, 1, 20] }, { id: "S2", pos: [-12, 1, 10] }],
+      lanterns: [{ id: "L1", pos: [0, 0, 10], lit: true }],
+    }));
+    expect(events(r, "player_hit")).toHaveLength(0);
+    const dists = r.lines.filter((l) => l.type === "snapshot").flatMap((s) => s.shades.map((sh: any) => xz(sh.pos, [0, 0, 10])));
+    expect(Math.min(...dists)).toBeGreaterThan(5);
+    expect(Math.min(...dists)).toBeLessThan(5.1); // they do come right up to the edge
+  });
+
+  it("unlit lanterns give no protection", () => {
+    const r = run(300, scn({ player: { pos: [0, 0, 10] }, shades: [{ id: "S1", pos: [0, 1, 20] }], lanterns: [{ id: "L1", pos: [0, 0, 10] }] }), undefined, 300);
+    expect(xz(snap(r, 300).shades[0].pos, [0, 0, 10])).toBeLessThan(1);
+  });
+
+  it("AC18: default night starts with 3 rim shades (no events) and spawns one every 30 s", () => {
+    // Player sits inside a lit lantern so the shades cannot end the game early.
+    const r = runCli([...BASE, "--ticks", "1801", "--snapshot-every", "1800"], {
+      scenario: { random_motes: false, lanterns: [{ id: "L1", pos: [0, 0, 0], lit: true }] },
+    });
+    const s0 = snap(r, 0);
+    expect(s0.shades.map((s: any) => s.id)).toEqual(["S1", "S2", "S3"]);
+    for (const s of s0.shades) {
+      expect(xz(s.pos, [0, 0, 0])).toBeCloseTo(38, 2);
+      expect(s.pos[1]).toBe(1);
+    }
+    const spawned = events(r, "shade_spawned");
+    expect(spawned).toEqual([{ type: "event", tick: 1800, name: "shade_spawned", data: { id: "S4" } }]);
+    expect(snap(r, 1800).shades).toHaveLength(4);
+  });
+
+  it("random_shades:false never spawns; generated ids skip ids taken by the scenario", () => {
+    const none = run(1800, scn({ lanterns: [{ id: "L1", pos: [0, 0, 0], lit: true }] }), undefined, 1800);
+    expect(events(none, "shade_spawned")).toHaveLength(0);
+    const mixed = runCli([...BASE, "--ticks", "1800", "--snapshot-every", "1800"], {
+      scenario: { random_motes: false, shades: [{ id: "S1", pos: [20, 1, 0] }], lanterns: [{ id: "L1", pos: [0, 0, 0], lit: true }] },
+    });
+    expect(snap(mixed, 0).shades.map((s: any) => s.id)).toEqual(["S1"]);
+    expect(events(mixed, "shade_spawned")[0]!.data.id).toBe("S2");
+  });
+});

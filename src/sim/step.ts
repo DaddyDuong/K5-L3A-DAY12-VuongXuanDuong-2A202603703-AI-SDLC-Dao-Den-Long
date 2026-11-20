@@ -1,7 +1,7 @@
 import { worldMove } from "./inputs.js";
 import { TUNING, WORLD } from "./tuning.js";
-import type { InputState, SimEvent, World } from "./types.js";
-import { timeLeftS } from "./world.js";
+import type { InputState, SimEvent, Vec3, World } from "./types.js";
+import { spawnShadeOnRim, timeLeftS } from "./world.js";
 
 const DT = 1 / WORLD.tick_rate;
 
@@ -9,6 +9,7 @@ const DT = 1 / WORLD.tick_rate;
 export function step(w: World, input: InputState): SimEvent[] {
   const events: SimEvent[] = [];
   if (w.state !== "playing") return events;
+  const t = w.steps + 1; // tick number of the state this step produces
 
   const prev = w.prevInput;
   const pressed = (b: "jump" | "interact" | "pulse" | "dash") => input[b] && !prev[b];
@@ -39,7 +40,9 @@ export function step(w: World, input: InputState): SimEvent[] {
   pickupMotes(w, events);
   if (pressed("interact")) deposit(w, events);
 
-  // TODO(phase-1 rules): pulse, shades chase/hit/spawn.
+  // TODO(phase-1 rules): pulse, hits.
+  moveShades(w, t);
+  spawnShades(w, t, events);
 
   w.steps++;
   w.prevInput = { ...input, move: [...input.move] };
@@ -105,4 +108,53 @@ function pickupMotes(w: World, events: SimEvent[]): void {
     events.push({ name: "mote_picked", data: { carried: p.carried } });
     return false;
   });
+}
+
+/** R5/R6/R9: stun expiry, chase, keep out of lit-lantern safe zones and inside the island. */
+function moveShades(w: World, t: number): void {
+  const p = w.player.pos;
+  for (const s of w.shades) {
+    if (s.state === "stunned" && t >= s.stunUntil) s.state = "chase";
+    if (s.state === "chase") {
+      const dx = p[0] - s.pos[0];
+      const dz = p[2] - s.pos[2];
+      const d = Math.hypot(dx, dz);
+      const stepLen = Math.min(TUNING.shade_speed * DT, d);
+      if (d > 0) {
+        s.pos[0] += (dx / d) * stepLen;
+        s.pos[2] += (dz / d) * stepLen;
+      }
+    }
+    constrainShade(w, s.pos);
+  }
+}
+
+const SAFE_EPS = 0.01; // shades stop just outside safe_radius so "within r" (<= r) never holds
+
+/** Push a shade position out of every lit lantern's safe zone and back onto the island. */
+export function constrainShade(w: World, pos: Vec3): void {
+  for (const l of w.lanterns) {
+    if (!l.lit) continue;
+    const dx = pos[0] - l.pos[0];
+    const dz = pos[2] - l.pos[2];
+    const d = Math.hypot(dx, dz);
+    if (d <= TUNING.safe_radius) {
+      const [ux, uz] = d > 0 ? [dx / d, dz / d] : [1, 0];
+      pos[0] = l.pos[0] + ux * (TUNING.safe_radius + SAFE_EPS);
+      pos[2] = l.pos[2] + uz * (TUNING.safe_radius + SAFE_EPS);
+    }
+  }
+  const r = Math.hypot(pos[0], pos[2]);
+  if (r > WORLD.island_radius) {
+    pos[0] *= WORLD.island_radius / r;
+    pos[2] *= WORLD.island_radius / r;
+  }
+}
+
+/** R4: one new shade every shade_spawn_interval_s while below shade_max. */
+function spawnShades(w: World, t: number, events: SimEvent[]): void {
+  if (!w.randomShades || t % (WORLD.shade_spawn_interval_s * WORLD.tick_rate) !== 0) return;
+  if (w.shades.length >= WORLD.shade_max) return;
+  const s = spawnShadeOnRim(w, Math.PI);
+  events.push({ name: "shade_spawned", data: { id: s.id } });
 }

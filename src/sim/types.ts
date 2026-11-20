@@ -1,3 +1,5 @@
+import type { Rng } from "./rng.js";
+
 export type Vec3 = [number, number, number];
 export type GameState = "playing" | "won" | "lost";
 
@@ -36,7 +38,8 @@ export interface Lantern {
 export interface Shade {
   id: string;
   pos: Vec3;
-  state: string; // must include "stunned"; others are ours (e.g. "chase")
+  state: "chase" | "stunned";
+  stunUntil: number; // tick at which a stunned shade returns to "chase"
 }
 
 export interface Mote {
@@ -57,6 +60,8 @@ export interface SimEvent {
 }
 
 export interface World {
+  rng: Rng;
+  randomShades: boolean;
   steps: number;
   startTimeLeftS: number;
   state: GameState;
@@ -67,5 +72,7 @@ export interface World {
   motes: Mote[];
   nextMoteId: number;
   nextShadeId: number;
+  invulnUntil: number; // player can be hit again at this tick
+  pulseReadyAt: number; // next tick a pulse may fire
   prevInput: InputState;
 }

@@ -47,14 +47,9 @@ export function createWorld(seed: number, sc: Scenario = {}): World {
   }
   const motes: Mote[] = motePositions.map((pos, i) => ({ id: `M${i + 1}`, pos: [...pos] }));
 
-  // Phase-1 shade spawning rules are not implemented yet: default list is empty.
-  const shades: Shade[] = (sc.shades ?? []).map((s, i) => ({
-    id: s.id ?? `S${i + 1}`,
-    pos: [...s.pos],
-    state: "chase",
-  }));
-
-  return {
+  const w: World = {
+    rng,
+    randomShades: sc.random_shades !== false,
     steps: 0,
     startTimeLeftS: sc.time_left_s ?? TUNING.night1_duration_s,
     state: "playing",
@@ -66,12 +61,45 @@ export function createWorld(seed: number, sc: Scenario = {}): World {
       carried: sc.player?.carried ?? 0,
     },
     lanterns,
-    shades,
+    shades: [],
     motes,
     nextMoteId: motes.length + 1,
-    nextShadeId: shades.length + 1,
+    nextShadeId: 1,
+    invulnUntil: 0,
+    pulseReadyAt: 0,
     prevInput: { ...DEFAULT_INPUT, move: [0, 0] },
   };
+
+  if (sc.shades) {
+    // Scenario list replaces the initial shades; generated ids must not collide with these.
+    for (const s of sc.shades) w.shades.push(makeShade(s.id ?? newShadeId(w, sc.shades), s.pos));
+  } else if (w.randomShades) {
+    for (let i = 0; i < WORLD.shade_initial_count; i++) {
+      spawnShadeOnRim(w, Math.PI + (2 * Math.PI * i) / WORLD.shade_initial_count);
+    }
+  }
+  return w;
+}
+
+function makeShade(id: string, pos: Vec3): Shade {
+  return { id, pos: [...pos], state: "chase", stunUntil: 0 };
+}
+
+function newShadeId(w: World, reserved: { id?: string }[] = []): string {
+  const taken = new Set([...w.shades.map((s) => s.id), ...reserved.map((s) => s.id)]);
+  while (taken.has(`S${w.nextShadeId}`)) w.nextShadeId++;
+  return `S${w.nextShadeId++}`;
+}
+
+/** R4: spawn on the island rim at (player bearing + offset) ± jitter. Returns the new shade. */
+export function spawnShadeOnRim(w: World, offsetRad: number): Shade {
+  const bearing = Math.atan2(w.player.pos[0], w.player.pos[2]);
+  const jitter = (w.rng.range(-WORLD.shade_spawn_jitter_deg, WORLD.shade_spawn_jitter_deg) * Math.PI) / 180;
+  const a = bearing + offsetRad + jitter;
+  const r = WORLD.shade_spawn_radius;
+  const shade = makeShade(newShadeId(w), [round3(r * Math.sin(a)), WORLD.shade_y, round3(r * Math.cos(a))]);
+  w.shades.push(shade);
+  return shade;
 }
 
 export function timeLeftS(w: World): number {
