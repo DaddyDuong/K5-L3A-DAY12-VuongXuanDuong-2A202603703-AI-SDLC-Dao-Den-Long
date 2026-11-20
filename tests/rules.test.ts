@@ -261,3 +261,31 @@ describe("R8/R9 pulse and stun", () => {
     expect(snap(r, 62).score).toBe(25);
   });
 });
+
+describe("AC20 determinism with all rules active", () => {
+  // Wander around the default night (changing heading, pulsing and interacting every second), then stand
+  // still for the last 20 s: the player (6 m/s) outruns shades (3.5 m/s), so only standing still gets hit.
+  const frames: Record<string, unknown>[] = [];
+  for (let t = 0; t < 3600; t += 60) {
+    const move = t < 2400 ? [Math.sin(t / 300), 1] : [0, 0];
+    frames.push({ tick: t, move, cam_yaw_deg: (t / 4) % 360, pulse: true, interact: true });
+    frames.push({ tick: t + 1, pulse: false, interact: false });
+  }
+  const args = ["--seed", "12345", "--night", "1", "--ticks", "3600"];
+
+  it("same seed + inputs -> byte-identical output, and the run really exercises the rules", () => {
+    const a = runCli(args, { inputs: { frames } });
+    const b = runCli(args, { inputs: { frames } });
+    expect(a.code).toBe(0);
+    expect(a.raw).toBe(b.raw);
+    for (const name of ["mote_picked", "pulse", "player_hit", "shade_spawned"]) {
+      expect(events(a, name).length, name).toBeGreaterThan(0);
+    }
+  });
+
+  it("a different seed changes the outcome", () => {
+    const c = runCli(["--seed", "999", ...args.slice(2)], { inputs: { frames } });
+    const a = runCli(args, { inputs: { frames } });
+    expect(c.raw).not.toBe(a.raw);
+  });
+});
