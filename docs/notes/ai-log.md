@@ -10,6 +10,12 @@ Công cụ: Claude Code (Opus 5.5). Harness: `CLAUDE.md`, hook Stop `.claude/hoo
 | 1 | Bước 3: code luật theo 6 lát, mỗi lát test AC trước (thấy đỏ) → code → xanh → commit | "hoàn thiện cho tôi" | Test AC20 ban đầu kỳ vọng có `player_hit` khi đi lang thang, nhưng người chơi (6 m/s) nhanh hơn Bóng Mực (3.5 m/s) nên không bao giờ bị chạm. Phát hiện nhờ test đỏ + in số event/vị trí từ JSONL. Sửa **kịch bản test** (đứng yên 20 s cuối), không sửa luật | gộp, xem bảng token |
 | 1 | Sửa tạo hình Mây và cột đèn (chỉ `src/web`) | Người dùng hỏi "tạo hình nhân vật như này liệu có phù hợp?" kèm ảnh chụp | Bản đầu AI dựng đúng "chữ" của PRD (nón + quả cầu) nhưng không kiểm tra **nhìn thực tế**: đèn treo nằm phía trước nên camera sau lưng không thấy, nón tối, cột đèn chưa thắp gần như vô hình. Người dùng phát hiện qua ảnh; AI sửa rồi kiểm tra lại bằng ảnh chụp/zoom từ Chrome | gộp, xem bảng token |
 | 1 | Bot tự chơi + chế độ replay web + skill `play-and-capture` | "bạn không tự động làm được à" (sau khi AI đề nghị người dùng tự chơi để lấy ảnh) | Công cụ trình duyệt không giữ phím được, nên thay vì điều khiển bàn phím, AI cho bot chơi qua sim thật rồi phát lại inputs trên web. AI tự bắt được lỗi TDZ (`endReason` dùng trước khi khai báo) khi đọc lại diff, trước khi chạy | gộp, xem bảng token |
+| 2 | Đọc Ticket-02 trên lab board | "phase 2 đã mở. tiếp tục onboard tôi làm gì", rồi "thử lại đi" | Lần đầu AI chỉ đọc được Phase 1 (trang board là iframe khác origin: `Artifact read`, `get_page_text`, `read_page` đều trả rỗng) và định dừng lại. Người dùng yêu cầu thử lại → AI đọc bằng ảnh chụp cuộn trang trong Chrome và chép vào `ticket-02.md`; 1 ký tự màu bị che, ghi lại là `#?E58A` thay vì đoán (A29) | gộp, xem bảng token |
+| 2 | Giả định A1–A33, luật R14–R28, AC22–AC46 trước khi code | "không cần lo về vấn đề thời gian đâu" (làm đủ phạm vi) | — | gộp |
+| 2 | Viết lại sim theo thứ tự 12 bước, 3 bản đồ heightfield, contract v1.1 | (tiếp kế hoạch) | 23 test Phase 1 đỏ sau khi đổi số chuẩn, đúng như dự kiến; sửa từng kỳ vọng kèm lý do ở assumptions §1. AC20 cũ (đi hình sin) rơi khỏi đảo vì luật rơi mới → đổi đường đi, không đổi luật | gộp |
+| 2 | Test headless AC23–AC43 (`phase2.test.ts`) | (tiếp kế hoạch) | 2 kỳ vọng AI tự tính sai trong test mới: quên rằng bước 8 (bóng di chuyển) chạy trước bước 9 (va chạm) nên vị trí recoil lệch 0.067 m; kịch bản TTL để bóng đánh lại nhiều lần. Phát hiện bằng test đỏ + đọc JSONL; sửa kịch bản/kỳ vọng theo đúng thứ tự tick, không sửa sim | gộp |
+| 2 | Bot thắng 3 Đêm | (tiếp kế hoạch) | Bot thua Đêm 3. Nguyên nhân tìm bằng cách dựng lại thế giới tại tick bị kẹt: (1) hàm `danger` tính cả Bóng Mực ở tầng dưới → bot đi vòng qua bục nhảy thay vì 8 m tới đèn; (2) ô lưới cạnh dốc có tâm trên dốc nên bot tưởng đang ở độ cao 2.75 m và đi vào vách 85 s; (3) bot tỏa sáng vào Gió Lạc (tốn 3 = đúng số bị cướp) làm thiếu đom đóm. Một thử nghiệm của AI (tỏa sáng khi bị vây) làm tệ hơn (Đêm 2 3/12) và đã bỏ. Kết quả: 12/12, 10/12, 9/12 seed | gộp |
+| 2 | Bản web: chuỗi màn hình, tạm dừng, cài đặt, âm thanh, HUD, bảng màu | (tiếp kế hoạch) | Qua ảnh chụp: lá gió hiện thành ô vuông, áo Mây xám thay vì `#E8E2D0` → sửa. Đồng hồ báo 1–5 FPS: AI kiểm tra rAF trên trang JSON tĩnh cũng chỉ 4/s → Chrome bóp cửa sổ bị che, không phải game chậm; thêm `__bench` đo 4.2 ms/khung. AI ghi trong bảng bằng chứng một ảnh "nhắc nạp" chưa hề chụp; tự phát hiện khi rà lại, chụp bổ sung trước khi commit | gộp |
 
 ## Token và chi phí — Phase 1
 
@@ -43,3 +49,20 @@ Cần cải thiện ở Phase 2:
 - Quan sát: đứng yên ~14 s là thua, nhưng bot tham lam thắng cả 5 seed thử (1, 2, 3, 7, 42) trong 38–52 s mà **không mất lửa nào**, với 3 lần tỏa sáng. Game đang dễ với người chơi chủ động; có thể cần chỉnh nếu ticket sau yêu cầu độ khó.
 - Quan sát: không có va chạm giữa người chơi và cột đèn (Mây có thể đứng "trong" cột). Không thuộc yêu cầu, ghi lại để cân nhắc.
 - Harness: hook Stop chạy `npm test` mỗi lần agent kết thúc, chưa phải chặn lần nào trong phase này.
+
+## Token và chi phí — Phase 2
+
+_Chờ số liệu `/cost` cuối Phase 2 (người dùng chạy và dán vào)._ Phiên Phase 2 có 1 lần tự nén ngữ cảnh (compact) giữa chừng.
+
+| Model | Input | Output | Cache read | Cache write | Chi phí |
+|---|---:|---:|---:|---:|---:|
+| claude-opus-5-5 | | | | | |
+
+Cách đã tiết kiệm ở Phase 2:
+- Chép ticket một lần vào `docs/notes/ticket-02.md`; về sau tra file thay vì mở lại board (ảnh tốn token).
+- Đánh giá bot bằng một script chạy 12 seed × 3 đêm trong Node (không in log từng tick), chỉ in tóm tắt thắng/thua.
+- Gỡ lỗi bot bằng cách dựng lại thế giới tại đúng tick bị kẹt (export tạm, xóa sau) thay vì đọc cả JSONL.
+- Ảnh chụp ở tỉ lệ 0.6; gom nhiều thao tác trình duyệt vào một lần gọi.
+
+Chưa tốt:
+- Thử nghiệm "tỏa sáng khi bị vây" tốn ~4 phút chạy đánh giá mà không giúp được; nên suy luận kinh tế đom đóm (cung ≈ 110, cần 70) trước khi thử.

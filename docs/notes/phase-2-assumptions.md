@@ -57,6 +57,11 @@ Ticket: *"Số liệu chuẩn (bắt buộc, thay mọi giá trị tự chọn)"
 | A26 | Scenario mới | `player.{invuln_ticks, dash_cd_ticks, pulse_cd_ticks, charm_ticks}` là số nguyên ≥ 0; `shades[].state` thuộc 5 tên chuẩn, `state_ticks_left` cho trạng thái có hạn; `drifters[]` = `{id?, pos, state? (idle/chase/flee/removed), stolen?, state_ticks_left?}`; `charms[]` = `{id?, pos, available?, respawn_ticks?}`; `lanterns[].id` phải thuộc L1…Ln của Đêm đó |
 | A27 | Tâm Tỏa Sáng | Chân Mây + 0.8 m; đẩy lùi theo phương ngang từ XZ của Mây, hướng chốt ở tick kích hoạt |
 | A28 | Tốc độ Bóng Mực Đêm 3 (4.5 m/s) | `tuning.shade_speed` = 4 (giá trị Đêm 1, 2); 4.5 là hằng số theo Đêm, ghi trong README |
+| A29 | Màu quầng đom đóm *"`#?E58A`"* (ký tự đầu bị che khi chép) | Dùng `#FFE58A` (vàng ấm cùng tông lõi `#FFF6C2`). Cần xác nhận lại trên board |
+| A30 | Tạm dừng trên web (*"logic dừng hoàn toàn"*) | Bản web không gọi `step()` khi tạm dừng (không phát `paused` vào sim). Input `pause` của contract chỉ dùng cho headless/replay; mất khóa chuột (Esc) khi đang chơi cũng tạm dừng |
+| A31 | Đo FPS (*"≥ 30 FPS trung bình ở 1280×720"*) | `?fps=1` hiện FPS 1 s và trung bình 30 s. Vì Chrome bóp rAF khi cửa sổ bị che, kèm `__bench(n)`: render n khung ở bộ đệm 1280×720, chờ GPU từng khung, báo ms/khung |
+| A32 | Lời Ông Đăng, tên màn hình | Tự viết (ticket chỉ yêu cầu có *"tên đảo, lời Ông Đăng"*) |
+| A33 | Tổng điểm Bình Minh (*"tổng điểm các Đêm đã thắng"*) | Mỗi Đêm lấy điểm thắng cao nhất trong lượt chơi hiện tại; "Bắt đầu hành trình" xóa bảng. Chơi lại Đêm thua không trừ gì. Thắng Đêm qua replay cũng tính (để phát lại cả chuỗi) |
 
 ## 3. Luật mới (R14–R28)
 
@@ -116,6 +121,7 @@ Ticket: *"Số liệu chuẩn (bắt buộc, thay mọi giá trị tự chọn)"
 - A22: dòng `end` khi đang tạm dừng ghi `state` gì.
 - A23: `night_start` ở tick 0 hay tick 1.
 - A24: `player.invuln` là boolean hay số giây.
+- A29: ký tự đầu của màu quầng đom đóm `#?E58A`.
 
 Ghi câu trả lời vào đây trước khi sửa code.
 
